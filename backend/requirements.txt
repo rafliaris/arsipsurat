@@ -1,0 +1,59 @@
+# Python dependencies for FastAPI backend
+# Install with: pip install -r requirements.txt
+
+# Core Framework
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Database
+SQLAlchemy
+pymysql
+alembic
+
+# Authentication & Security
+python-jose[cryptography]
+passlib[bcrypt]
+python-dotenv
+
+# Pydantic & Validation
+pydantic
+pydantic-settings
+email-validator
+
+# OCR & Document Processing
+pytesseract
+Pillow
+PyPDF2
+pdfplumber
+python-docx
+
+# Export & Reporting
+openpyxl
+xlsxwriter
+reportlab
+weasyprint
+
+# Google Sheets (optional)
+gspread
+google-api-python-client
+google-auth
+
+# Background Tasks & Caching
+celery
+redis
+
+# HTTP Client
+httpx
+
+# Date/Time utilities
+python-dateutil
+
+# CORS
+fastapi-cors
+
+# Rate Limiting
+slowapi
+
+# Logging and Monitoring (optional)
+sentry-sdk
