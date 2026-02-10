@@ -2,58 +2,58 @@
 # Install with: pip install -r requirements.txt
 
 # Core Framework
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-python-multipart==0.0.6
+fastapi
+uvicorn[standard]
+python-multipart
 
 # Database
-SQLAlchemy==2.0.25
-pymysql==1.1.0
-alembic==1.13.1
+SQLAlchemy
+pymysql
+alembic
 
 # Authentication & Security
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-dotenv==1.0.1
+python-jose[cryptography]
+passlib[bcrypt]
+python-dotenv
 
 # Pydantic & Validation
-pydantic==2.5.3
-pydantic-settings==2.1.0
-email-validator==2.1.0
+pydantic
+pydantic-settings
+email-validator
 
 # OCR & Document Processing
-pytesseract==0.3.10
-Pillow==10.2.0
-PyPDF2==3.0.1
-pdfplumber==0.10.3
-python-docx==1.1.0
+pytesseract
+Pillow
+PyPDF2
+pdfplumber
+python-docx
 
 # Export & Reporting
-openpyxl==3.1.2
-xlsxwriter==3.1.9
-reportlab==4.0.9
-weasyprint==60.2
+openpyxl
+xlsxwriter
+reportlab
+weasyprint
 
 # Google Sheets (optional)
-gspread==5.12.3
-google-api-python-client==2.116.0
-google-auth==2.27.0
+gspread
+google-api-python-client
+google-auth
 
 # Background Tasks & Caching
-celery==5.3.6
-redis==5.0.1
+celery
+redis
 
 # HTTP Client
-httpx==0.26.0
+httpx
 
 # Date/Time utilities
-python-dateutil==2.8.2
+python-dateutil
 
 # CORS
-fastapi-cors==0.0.6
+fastapi-cors
 
 # Rate Limiting
-slowapi==0.1.9
+slowapi
 
 # Logging and Monitoring (optional)
-# sentry-sdk==1.39.2
+sentry-sdk
