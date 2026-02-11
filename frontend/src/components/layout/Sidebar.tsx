@@ -17,7 +17,7 @@ const sidebarItems = [
     { icon: Inbox, label: "Surat Masuk", href: "/surat-masuk" },
     { icon: Send, label: "Surat Keluar", href: "/surat-keluar" },
     { icon: FileCheck, label: "Disposisi", href: "/disposisi" },
-    { icon: Users, label: "Users", href: "/users" },
+    { icon: Users, label: "Users", href: "/settings/users" }, // Shortcut to users
     { icon: Settings, label: "Settings", href: "/settings" },
 ]
 

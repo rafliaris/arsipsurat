@@ -8,6 +8,10 @@ import SuratMasukDetailPage from "@/features/surat-masuk/pages/SuratMasukDetailP
 import SuratKeluarPage from "@/features/surat-keluar/pages/SuratKeluarPage"
 import SuratKeluarCreatePage from "@/features/surat-keluar/pages/SuratKeluarCreatePage"
 import SuratKeluarDetailPage from "@/features/surat-keluar/pages/SuratKeluarDetailPage"
+import { SettingsLayout } from "./features/settings/pages/SettingsLayout"
+import SettingsPage from "./features/settings/pages/SettingsPage"
+import UserManagementPage from "./features/settings/pages/UserManagementPage"
+import CategoryManagementPage from "./features/settings/pages/CategoryManagementPage"
 
 // Protected Route Wrapper
 const ProtectedRoute = () => {
@@ -32,6 +36,13 @@ function App() {
           <Route path="/surat-keluar" element={<SuratKeluarPage />} />
           <Route path="/surat-keluar/create" element={<SuratKeluarCreatePage />} />
           <Route path="/surat-keluar/:id" element={<SuratKeluarDetailPage />} />
+
+          {/* Settings Routes */}
+          <Route path="/settings" element={<SettingsLayout />}>
+            <Route index element={<SettingsPage />} />
+            <Route path="users" element={<UserManagementPage />} />
+            <Route path="categories" element={<CategoryManagementPage />} />
+          </Route>
           {/* Add other protected routes here */}
         </Route>
 
