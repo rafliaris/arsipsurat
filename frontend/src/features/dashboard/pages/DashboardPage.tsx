@@ -2,7 +2,7 @@ import { DashboardLayout } from "@/features/dashboard/components/DashboardLayout
 import { StatsCards } from "@/features/dashboard/components/StatsCards"
 import { OverviewChart } from "@/features/dashboard/components/OverviewChart"
 import { RecentActivity } from "@/features/dashboard/components/RecentActivity"
-import { DisposisiStatsChart } from "@/features/dashboard/components/DisposisiStatsChart"
+import { DisposisiStatsCards } from "@/features/dashboard/components/DisposisiStatsCards"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useEffect, useState } from "react"
 
@@ -24,6 +24,11 @@ export default function DashboardPage() {
             </div>
 
             <StatsCards loading={loading} />
+
+            <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Statistik Disposisi</h2>
+            </div>
+            <DisposisiStatsCards loading={loading} />
 
             <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
                 <Card className="xl:col-span-2">
@@ -48,9 +53,6 @@ export default function DashboardPage() {
                         <RecentActivity loading={loading} />
                     </CardContent>
                 </Card>
-                <div className="col-span-1">
-                    <DisposisiStatsChart loading={loading} />
-                </div>
             </div>
         </DashboardLayout>
     )
