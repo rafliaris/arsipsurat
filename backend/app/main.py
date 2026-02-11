@@ -1,20 +1,73 @@
+```python
 """
 FastAPI Backend - Sistem Klasifikasi Arsip Surat
 Entry point for the application
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from app.api.v1.router import api_router
-from app.core.config import settings
+from contextlib import asynccontextmanager
 
-# Create FastAPI app
+from app.core.config import settings
+from app.api.v1.router import api_router
+from app.database import SessionLocal, engine
+from app.models.user import User
+from app.core.security import get_password_hash
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan event handler - runs on startup and shutdown
+    """
+    # Startup: Create default admin if no users exist
+    db = SessionLocal()
+    try:
+        user_count = db.query(User).count()
+        if user_count == 0:
+            print("=" * 60)
+            print("🔐 No users found in database. Creating default super admin...")
+            
+            default_admin = User(
+                username="admin",
+                email="admin@arsipsurat.local",
+                full_name="Super Administrator",
+                hashed_password=get_password_hash("admin123"),
+                role="admin",
+                is_active=True
+            )
+            
+            db.add(default_admin)
+            db.commit()
+            db.refresh(default_admin)
+            
+            print("✅ Default super admin created successfully!")
+            print("   Username: admin")
+            print("   Password: admin123")
+            print("   ⚠️  PLEASE CHANGE THIS PASSWORD AFTER FIRST LOGIN!")
+            print("=" * 60)
+        else:
+            print(f"✅ Database initialized. {user_count} user(s) found.")
+    except Exception as e:
+        print(f"❌ Error during startup: {e}")
+        db.rollback()
+    finally:
+        db.close()
+    
+    yield
+    
+    # Shutdown
+    print("🛑 Application shutting down...")
+
+
+# Create FastAPI app with lifespan
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="API untuk Sistem Klasifikasi Arsip Surat Masuk dan Keluar",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
+    lifespan=lifespan
 )
 
 # CORS middleware
