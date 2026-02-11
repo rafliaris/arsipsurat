@@ -40,23 +40,15 @@ export function LoginForm() {
 
     async function onSubmit(data: LoginFormValues) {
         setIsLoading(true)
-        // Mock authentication delay
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        // Mock Login Logic
-        if (data.email) {
-            login(
-                {
-                    id: "1",
-                    name: "Admin User",
-                    email: data.email,
-                    role: "admin",
-                },
-                "mock-jwt-token"
-            )
+        try {
+            await login(data.email, data.password)
             navigate("/dashboard")
+        } catch (error) {
+            // Handle error (show toast potentially)
+            console.error("Login failed", error)
+        } finally {
+            setIsLoading(false)
         }
-        setIsLoading(false)
     }
 
     return (

@@ -33,7 +33,7 @@ export function Header() {
                 <ModeToggle />
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <User className="h-4 w-4" />
-                    <span className="hidden md:inline">{user?.name || "User"}</span>
+                    <span className="hidden md:inline">{user?.full_name || "User"}</span>
                 </div>
                 <Button variant="ghost" size="icon" onClick={logout} title="Logout">
                     <LogOut className="h-5 w-5" />

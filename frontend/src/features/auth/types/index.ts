@@ -1,15 +1,16 @@
 export interface User {
-    id: string;
-    name: string;
+    id: number;
+    username: string;
     email: string;
-    role: 'admin' | 'staff' | 'pimpinan';
-    avatar?: string;
+    full_name: string;
+    role: string; // 'admin' | 'staff' | 'pimpinan'
+    is_active: boolean;
+    created_at: string;
+    avatar?: string; // Optional, might not be in backend response yet
 }
 
 export interface AuthState {
     user: User | null;
     token: string | null;
     isAuthenticated: boolean;
-    login: (user: User, token: string) => void;
-    logout: () => void;
 }

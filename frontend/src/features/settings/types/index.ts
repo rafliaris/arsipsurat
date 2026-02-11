@@ -1,10 +1,12 @@
 export interface User {
-    id: string;
-    name: string;
+    id: number;
+    username: string;
     email: string;
-    role: 'admin' | 'staff' | 'kepala_dinas';
+    full_name: string;
+    role: string;
+    is_active: boolean;
+    created_at?: string;
     avatar?: string;
-    status: 'active' | 'inactive';
 }
 
 export interface Category {

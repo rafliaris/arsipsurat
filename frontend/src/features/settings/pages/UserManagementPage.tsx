@@ -33,7 +33,7 @@ export default function UserManagementPage() {
         fetchUsers()
     }, [])
 
-    const handleDelete = async (id: string) => {
+    const handleDelete = async (id: number) => {
         if (confirm("Apakah anda yakin ingin menghapus user ini?")) {
             await mockUserService.delete(id)
             setUsers(users.filter(u => u.id !== id))
@@ -73,10 +73,10 @@ export default function UserManagementPage() {
                                     <TableCell className="flex items-center gap-4">
                                         <Avatar>
                                             <AvatarImage src={user.avatar} />
-                                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                            <AvatarFallback>{user.full_name.charAt(0)}</AvatarFallback>
                                         </Avatar>
                                         <div>
-                                            <div className="font-medium">{user.name}</div>
+                                            <div className="font-medium">{user.full_name}</div>
                                             <div className="text-sm text-muted-foreground">{user.email}</div>
                                         </div>
                                     </TableCell>
@@ -84,8 +84,8 @@ export default function UserManagementPage() {
                                         <Badge variant="outline">{user.role}</Badge>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
-                                            {user.status}
+                                        <Badge variant={user.is_active ? 'default' : 'secondary'}>
+                                            {user.is_active ? 'Active' : 'Inactive'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">

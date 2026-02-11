@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom"
 import LoginPage from "@/features/auth/pages/LoginPage"
 import { useAuthStore } from "@/store/authStore"
+import { useEffect } from "react"
 import DashboardPage from "@/features/dashboard/pages/DashboardPage"
 import SuratMasukPage from "@/features/surat-masuk/pages/SuratMasukPage"
 import SuratMasukCreatePage from "@/features/surat-masuk/pages/SuratMasukCreatePage"
@@ -23,6 +24,13 @@ const ProtectedRoute = () => {
 
 // Global App Layout (if needed) or simple wrapper
 function App() {
+  const checkAuth = useAuthStore((state) => state.checkAuth)
+
+  // Check auth on mount
+  useEffect(() => {
+    checkAuth()
+  }, [checkAuth])
+
   return (
     <BrowserRouter>
       <Routes>
