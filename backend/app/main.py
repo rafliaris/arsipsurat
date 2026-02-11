@@ -1,10 +1,10 @@
-```python
 """
 FastAPI Backend - Sistem Klasifikasi Arsip Surat
 Entry point for the application
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
