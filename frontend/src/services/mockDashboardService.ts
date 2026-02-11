@@ -58,3 +58,10 @@ export const mockActivities = [
         initials: "SD"
     }
 ];
+
+export const mockDisposisiStats = [
+    { name: 'Segera', value: 35, fill: "var(--color-chart-1)" },
+    { name: 'Penting', value: 45, fill: "var(--color-chart-2)" },
+    { name: 'Rutin', value: 20, fill: "var(--color-chart-3)" },
+    { name: 'Rahasia', value: 10, fill: "var(--color-chart-4)" },
+];

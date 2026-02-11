@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 import { type Category } from "../types"
+import { toast } from "sonner"
+import { TableSkeleton } from "@/components/shared/TableSkeleton"
 import { mockCategoryService } from "@/services/mockCategoryService"
 import {
     Table,
@@ -35,6 +37,7 @@ export default function CategoryManagementPage() {
         if (confirm("Apakah anda yakin ingin menghapus kategori ini?")) {
             await mockCategoryService.delete(id)
             setCategories(categories.filter(c => c.id !== id))
+            toast.success("Kategori berhasil dihapus")
         }
     }
 
@@ -53,7 +56,7 @@ export default function CategoryManagementPage() {
             </div>
             <Separator />
 
-            {loading ? <div>Loading...</div> : (
+            {loading ? <TableSkeleton columns={5} /> : (
                 <div className="border rounded-md">
                     <Table>
                         <TableHeader>

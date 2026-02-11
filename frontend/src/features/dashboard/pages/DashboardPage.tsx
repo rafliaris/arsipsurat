@@ -2,17 +2,28 @@ import { DashboardLayout } from "@/features/dashboard/components/DashboardLayout
 import { StatsCards } from "@/features/dashboard/components/StatsCards"
 import { OverviewChart } from "@/features/dashboard/components/OverviewChart"
 import { RecentActivity } from "@/features/dashboard/components/RecentActivity"
+import { DisposisiStatsChart } from "@/features/dashboard/components/DisposisiStatsChart"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState } from "react"
 
 
 export default function DashboardPage() {
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setLoading(false)
+        }, 1000)
+        return () => clearTimeout(timer)
+    }, [])
+
     return (
         <DashboardLayout>
             <div className="flex items-center">
                 <h1 className="text-lg font-semibold md:text-2xl">Overview</h1>
             </div>
 
-            <StatsCards />
+            <StatsCards loading={loading} />
 
             <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
                 <Card className="xl:col-span-2">
@@ -23,7 +34,7 @@ export default function DashboardPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="pl-2">
-                        <OverviewChart />
+                        <OverviewChart loading={loading} />
                     </CardContent>
                 </Card>
                 <Card>
@@ -34,9 +45,12 @@ export default function DashboardPage() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <RecentActivity />
+                        <RecentActivity loading={loading} />
                     </CardContent>
                 </Card>
+                <div className="col-span-1">
+                    <DisposisiStatsChart loading={loading} />
+                </div>
             </div>
         </DashboardLayout>
     )

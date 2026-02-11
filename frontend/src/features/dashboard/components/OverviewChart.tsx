@@ -1,7 +1,12 @@
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { mockTrendData } from '@/services/mockDashboardService';
 
-export function OverviewChart() {
+import { Skeleton } from '@/components/ui/skeleton';
+
+export function OverviewChart({ loading }: { loading?: boolean }) {
+    if (loading) {
+        return <Skeleton className="w-full h-[350px]" />
+    }
     const data = mockTrendData;
     return (
         <ResponsiveContainer width="100%" height={350}>

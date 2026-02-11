@@ -3,20 +3,20 @@ import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useDropzone } from "react-dropzone"
@@ -24,16 +24,17 @@ import { Upload, X } from "lucide-react"
 import { useState, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { mockSuratMasukService } from "@/services/mockSuratMasukService"
+import { toast } from "sonner"
 
 const formSchema = z.object({
-  nomor_surat: z.string().min(1, "Nomor surat wajib diisi"),
-  pengirim: z.string().min(1, "Pengirim wajib diisi"),
-  perihal: z.string().min(1, "Perihal wajib diisi"),
-  tanggal_surat: z.string().min(1, "Tanggal surat wajib diisi"),
-  tanggal_terima: z.string().min(1, "Tanggal terima wajib diisi"),
-  kategori: z.string().min(1, "Kategori wajib dipilih"),
-  keterangan: z.string().optional(),
-  file: z.any().optional(),
+    nomor_surat: z.string().min(1, "Nomor surat wajib diisi"),
+    pengirim: z.string().min(1, "Pengirim wajib diisi"),
+    perihal: z.string().min(1, "Perihal wajib diisi"),
+    tanggal_surat: z.string().min(1, "Tanggal surat wajib diisi"),
+    tanggal_terima: z.string().min(1, "Tanggal terima wajib diisi"),
+    kategori: z.string().min(1, "Kategori wajib dipilih"),
+    keterangan: z.string().optional(),
+    file: z.any().optional(),
 })
 
 export function SuratMasukForm() {
@@ -60,7 +61,7 @@ export function SuratMasukForm() {
         }
     }, [])
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         accept: {
             'application/pdf': ['.pdf'],
@@ -77,9 +78,11 @@ export function SuratMasukForm() {
                 status: 'pending',
                 file_url: file ? URL.createObjectURL(file) : undefined
             })
+            toast.success("Surat masuk berhasil disimpan")
             navigate("/surat-masuk")
         } catch (error) {
             console.error(error)
+            toast.error("Gagal menyimpan surat masuk")
         } finally {
             setIsSubmitting(false)
         }
@@ -189,18 +192,17 @@ export function SuratMasukForm() {
                             <FormControl>
                                 <div
                                     {...getRootProps()}
-                                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                                        isDragActive ? 'border-primary bg-primary/10' : 'border-gray-300 hover:border-primary'
-                                    }`}
+                                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-gray-300 hover:border-primary'
+                                        }`}
                                 >
                                     <input {...getInputProps()} />
                                     {file ? (
                                         <div className="flex items-center justify-center gap-2 text-primary">
                                             <span className="font-medium">{file.name}</span>
-                                            <Button 
-                                                type="button" 
-                                                variant="ghost" 
-                                                size="sm" 
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
                                                 className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
                                                 onClick={(e) => {
                                                     e.stopPropagation()

@@ -22,6 +22,11 @@ export const mockDisposisiService = {
         return mockDisposisi.filter((d) => d.surat_masuk_id === suratId).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     },
 
+    getAll: async (): Promise<Disposisi[]> => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return mockDisposisi.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    },
+
     create: async (data: Omit<Disposisi, "id" | "created_at" | "status">): Promise<Disposisi> => {
         await new Promise((resolve) => setTimeout(resolve, 800));
         const newDisposisi: Disposisi = {

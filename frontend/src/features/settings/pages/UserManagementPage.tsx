@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 import { type User } from "../types"
+import { toast } from "sonner"
+import { TableSkeleton } from "@/components/shared/TableSkeleton"
 import { mockUserService } from "@/services/mockUserService"
 import {
     Table,
@@ -35,6 +37,7 @@ export default function UserManagementPage() {
         if (confirm("Apakah anda yakin ingin menghapus user ini?")) {
             await mockUserService.delete(id)
             setUsers(users.filter(u => u.id !== id))
+            toast.success("User berhasil dihapus")
         }
     }
 
@@ -53,7 +56,7 @@ export default function UserManagementPage() {
             </div>
             <Separator />
 
-            {loading ? <div>Loading...</div> : (
+            {loading ? <TableSkeleton columns={4} /> : (
                 <div className="border rounded-md">
                     <Table>
                         <TableHeader>

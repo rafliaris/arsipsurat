@@ -24,6 +24,7 @@ import { Upload, X } from "lucide-react"
 import { useState, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { mockSuratKeluarService } from "@/services/mockSuratKeluarService"
+import { toast } from "sonner"
 
 const formSchema = z.object({
     nomor_surat: z.string().min(1, "Nomor surat wajib diisi"),
@@ -75,9 +76,11 @@ export function SuratKeluarForm() {
                 status: 'draft', // Default to draft for new outgoing mail
                 file_url: file ? URL.createObjectURL(file) : undefined
             })
+            toast.success("Surat keluar berhasil dibuat")
             navigate("/surat-keluar")
         } catch (error) {
             console.error(error)
+            toast.error("Gagal membuat surat keluar")
         } finally {
             setIsSubmitting(false)
         }

@@ -1,6 +1,7 @@
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
 import { LogOut, User } from "lucide-react"
+import { ModeToggle } from "@/components/mode-toggle"
 
 export function Header() {
     const { user, logout } = useAuthStore()
@@ -12,6 +13,7 @@ export function Header() {
                 <h1 className="text-lg font-semibold md:text-xl">Dashboard</h1>
             </div>
             <div className="flex items-center gap-4">
+                <ModeToggle />
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <User className="h-4 w-4" />
                     <span>{user?.name || "User"}</span>

@@ -31,6 +31,7 @@ import {
 import { useState } from "react"
 import { mockDisposisiService } from "@/services/mockDisposisiService"
 import { Send } from "lucide-react"
+import { toast } from "sonner"
 
 const formSchema = z.object({
     tujuan: z.string().min(1, "Tujuan disposisi wajib diisi"),
@@ -68,11 +69,13 @@ export function DisposisiForm({ suratId, onSuccess }: DisposisiFormProps) {
                 surat_masuk_id: suratId,
                 dari: "Current User", // Mock user
             })
+            toast.success("Disposisi berhasil dikirim")
             setOpen(false)
             form.reset()
             onSuccess()
         } catch (error) {
             console.error(error)
+            toast.error("Gagal mengirim disposisi")
         } finally {
             setIsSubmitting(false)
         }

@@ -1,11 +1,11 @@
 import {
-    ColumnDef,
+    type ColumnDef,
     flexRender,
     getCoreRowModel,
     useReactTable,
     getPaginationRowModel,
     getSortedRowModel,
-    SortingState,
+    type SortingState,
 } from "@tanstack/react-table"
 import {
     Table,
@@ -23,10 +23,7 @@ import { Eye } from "lucide-react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 
-interface DataTableProps<TData, TValue> {
-    columns: ColumnDef<TData, TValue>[]
-    data: TData[]
-}
+
 
 export function SuratMasukTable({
     data,

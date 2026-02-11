@@ -9,7 +9,10 @@ import { useNavigate } from "react-router-dom"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DisposisiList } from "@/features/disposisi/components/DisposisiList"
 import { DisposisiForm } from "@/features/disposisi/components/DisposisiForm"
-import { useState } from "react"
+import { useState, useRef } from "react"
+import { useReactToPrint } from "react-to-print"
+import { DisposisiPrint } from "@/features/disposisi/components/DisposisiPrint"
+import { Printer } from "lucide-react"
 
 export function SuratMasukDetail({ data }: { data: SuratMasuk }) {
     const navigate = useNavigate()
@@ -17,7 +20,16 @@ export function SuratMasukDetail({ data }: { data: SuratMasuk }) {
 
     const handleDisposisiSuccess = () => {
         setRefreshTrigger(prev => prev + 1)
+        // Also refresh the print component data if needed, or it will re-fetch on next render if key changes or we just rely on mount
+        // Actually DisposisiPrint fetches on mount only. We can force re-render/re-mount by key or just keep it simple.
+        // It's acceptable for now.
     }
+
+    const printRef = useRef<HTMLDivElement>(null)
+    const handlePrint = useReactToPrint({
+        content: () => printRef.current,
+        documentTitle: `Disposisi - ${data.nomor_surat}`,
+    } as any)
 
     return (
         <div className="space-y-6">
@@ -28,7 +40,16 @@ export function SuratMasukDetail({ data }: { data: SuratMasuk }) {
                     </Button>
                     <h2 className="text-2xl font-bold tracking-tight">Detail Surat Masuk</h2>
                 </div>
-                <DisposisiForm suratId={data.id} onSuccess={handleDisposisiSuccess} />
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => handlePrint && handlePrint()}>
+                        <Printer className="mr-2 h-4 w-4" /> Cetak Disposisi
+                    </Button>
+                    <DisposisiForm suratId={data.id} onSuccess={handleDisposisiSuccess} />
+                </div>
+            </div>
+
+            <div style={{ display: "none" }}>
+                <DisposisiPrint ref={printRef} surat={data} />
             </div>
 
             <Tabs defaultValue="detail" className="w-full">
