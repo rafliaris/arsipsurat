@@ -5,13 +5,14 @@ import { authService } from '@/services/authService';
 
 interface AuthActions {
     login: (username: string, password: string) => Promise<void>;
-    logout: () => void;
+    logout: () => Promise<void>; // Updated to Promise
+    clearAuth: () => void;
     checkAuth: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState & AuthActions>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             user: null,
             token: null,
             isAuthenticated: false,
@@ -19,8 +20,6 @@ export const useAuthStore = create<AuthState & AuthActions>()(
                 try {
                     const response = await authService.login(username, password);
                     const token = response.access_token;
-                    // Token is set in state, but we also need to set it in axios header (interceptor handles it via getState, 
-                    // but for the immediate me() call we might rely on the token being in state)
                     set({ token, isAuthenticated: true });
 
                     const user = await authService.me();
@@ -30,8 +29,16 @@ export const useAuthStore = create<AuthState & AuthActions>()(
                     throw error;
                 }
             },
-            logout: () => {
-                authService.logout().catch(console.error);
+            logout: async () => {
+                try {
+                    await authService.logout();
+                } catch (error) {
+                    console.error("Logout failed", error);
+                } finally {
+                    get().clearAuth();
+                }
+            },
+            clearAuth: () => {
                 set({ user: null, token: null, isAuthenticated: false });
             },
             checkAuth: async () => {
@@ -42,7 +49,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
                     const user = await authService.me();
                     set({ user, isAuthenticated: true });
                 } catch (error) {
-                    set({ user: null, token: null, isAuthenticated: false });
+                    get().clearAuth();
                 }
             }
         }),

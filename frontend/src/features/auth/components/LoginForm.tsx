@@ -19,8 +19,8 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 const loginSchema = z.object({
-    email: z.string().email("Email tidak valid"),
-    password: z.string().min(6, "Password minimal 6 karakter"),
+    username: z.string().min(1, "Username atau Email wajib diisi"),
+    password: z.string().min(1, "Password wajib diisi"), // Backend might have different min length, keeping simple
 })
 
 type LoginFormValues = z.infer<typeof loginSchema>
@@ -33,7 +33,7 @@ export function LoginForm() {
     const form = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),
         defaultValues: {
-            email: "",
+            username: "",
             password: "",
         },
     })
@@ -41,7 +41,7 @@ export function LoginForm() {
     async function onSubmit(data: LoginFormValues) {
         setIsLoading(true)
         try {
-            await login(data.email, data.password)
+            await login(data.username, data.password)
             navigate("/dashboard")
         } catch (error) {
             // Handle error (show toast potentially)
@@ -56,7 +56,7 @@ export function LoginForm() {
             <CardHeader className="text-center">
                 <CardTitle className="text-2xl font-bold">Login</CardTitle>
                 <CardDescription>
-                    Masukkan email dan password untuk masuk ke aplikasi
+                    Masukkan username/email dan password untuk masuk
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -64,12 +64,12 @@ export function LoginForm() {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
                             control={form.control}
-                            name="email"
+                            name="username"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Email</FormLabel>
+                                    <FormLabel>Username atau Email</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="admin@example.com" {...field} />
+                                        <Input placeholder="admin atau admin@example.com" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
