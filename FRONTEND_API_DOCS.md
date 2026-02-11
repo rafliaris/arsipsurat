@@ -54,10 +54,20 @@
 ### 1.1 Login
 **POST** `/auth/login`
 
+**Accepts:** Username OR Email
+
 **Request:**
 ```json
 {
   "username": "admin",
+  "password": "admin123"
+}
+```
+
+Or using email:
+```json
+{
+  "username": "admin@arsipsurat.local",
   "password": "admin123"
 }
 ```
