@@ -23,16 +23,27 @@ async def login(
     db: Session = Depends(get_db)
 ):
     """
-    Login endpoint
+    Login endpoint - accepts username OR email
     Returns access token and refresh token
     """
-    # Find user by username
-    user = db.query(User).filter(User.username == form_data.username).first()
+    # Try to find user by username first
+    user = db.query(User).filter(
+        User.username == form_data.username,
+        User.deleted_at == None
+    ).first()
     
+    # If not found by username, try by email
+    if not user:
+        user = db.query(User).filter(
+            User.email == form_data.username,
+            User.deleted_at == None
+        ).first()
+    
+    # Check if user exists and password is correct
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect username/email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
