@@ -2,7 +2,8 @@
 Configuration settings using Pydantic
 Loads from environment variables
 """
-from typing import List
+from typing import List, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -23,12 +24,29 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
-    # CORS settings
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # CORS settings - can be comma-separated string or list
+    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:3000,http://localhost:5173"
+    
+    @field_validator('CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS_ORIGINS from comma-separated string or list"""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(',') if origin.strip()]
+        return v
     
     # File upload settings
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
-    ALLOWED_FILE_TYPES: List[str] = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"]
+    ALLOWED_FILE_TYPES: Union[str, List[str]] = ".pdf,.doc,.docx,.jpg,.jpeg,.png"
+    
+    @field_validator('ALLOWED_FILE_TYPES', mode='before')
+    @classmethod
+    def parse_allowed_file_types(cls, v):
+        """Parse ALLOWED_FILE_TYPES from comma-separated string or list"""
+        if isinstance(v, str):
+            return [ext.strip() for ext in v.split(',') if ext.strip()]
+        return v
+    
     UPLOAD_DIR: str = "uploads"
     STORAGE_DIR: str = "storage"
     
@@ -52,6 +70,7 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
+        env_file_encoding = 'utf-8'
         case_sensitive = True
 
 
