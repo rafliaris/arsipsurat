@@ -228,41 +228,41 @@ export function SuratMasukForm() {
                     )}
                 />
 
-                <FormItem>
-                    <FormLabel>File Surat (PDF/Image) <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                        <div
-                            {...getRootProps()}
-                            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-gray-300 hover:border-primary'
-                                }`}
-                        >
-                            <input {...getInputProps()} />
-                            {file ? (
-                                <div className="flex items-center justify-center gap-2 text-primary">
-                                    <span className="font-medium">{file.name}</span>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            setFile(null)
-                                        }}
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                    <Upload className="h-8 w-8" />
-                                    <p>Drag & drop file di sini, atau klik untuk memilih</p>
-                                    <p className="text-xs">Max 1 file (PDF, JPG, PNG)</p>
-                                </div>
-                            )}
-                        </div>
-                    </FormControl>
-                </FormItem>
+                <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none">
+                        File Surat (PDF/Image) <span className="text-red-500">*</span>
+                    </label>
+                    <div
+                        {...getRootProps()}
+                        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-gray-300 hover:border-primary'
+                            }`}
+                    >
+                        <input {...getInputProps()} />
+                        {file ? (
+                            <div className="flex items-center justify-center gap-2 text-primary">
+                                <span className="font-medium">{file.name}</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setFile(null)
+                                    }}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                <Upload className="h-8 w-8" />
+                                <p>Drag &amp; drop file di sini, atau klik untuk memilih</p>
+                                <p className="text-xs">Max 1 file (PDF, JPG, PNG)</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
                 <div className="flex justify-end gap-4">
                     <Button type="button" variant="outline" onClick={() => navigate("/surat-masuk")}>

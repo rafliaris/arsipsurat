@@ -196,8 +196,10 @@ export function SuratKeluarForm() {
                     )}
                 />
 
-                <FormItem>
-                    <FormLabel>File Surat (PDF/Image) <span className="text-red-500">*</span></FormLabel>
+                <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none">
+                        File Surat (PDF/Image) <span className="text-red-500">*</span>
+                    </label>
                     <p className="text-xs text-muted-foreground">
                         Nomor surat akan di-generate otomatis oleh sistem setelah file diproses.
                     </p>
@@ -231,7 +233,7 @@ export function SuratKeluarForm() {
                             </div>
                         )}
                     </div>
-                </FormItem>
+                </div>
 
                 <div className="flex justify-end gap-4">
                     <Button type="button" variant="outline" onClick={() => navigate("/surat-keluar")}>
