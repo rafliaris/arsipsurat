@@ -7,10 +7,12 @@ import DashboardPage from "@/features/dashboard/pages/DashboardPage"
 import SuratMasukPage from "@/features/surat-masuk/pages/SuratMasukPage"
 import SuratMasukCreatePage from "@/features/surat-masuk/pages/SuratMasukCreatePage"
 import SuratMasukDetailPage from "@/features/surat-masuk/pages/SuratMasukDetailPage"
+import SuratMasukEditPage from "@/features/surat-masuk/pages/SuratMasukEditPage"
 import DisposisiPage from "@/features/disposisi/pages/DisposisiPage"
 import SuratKeluarPage from "@/features/surat-keluar/pages/SuratKeluarPage"
 import SuratKeluarCreatePage from "@/features/surat-keluar/pages/SuratKeluarCreatePage"
 import SuratKeluarDetailPage from "@/features/surat-keluar/pages/SuratKeluarDetailPage"
+import SuratKeluarEditPage from "@/features/surat-keluar/pages/SuratKeluarEditPage"
 import { SettingsLayout } from "./features/settings/pages/SettingsLayout"
 import SettingsPage from "./features/settings/pages/SettingsPage"
 import UserManagementPage from "./features/settings/pages/UserManagementPage"
@@ -44,10 +46,12 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/surat-masuk" element={<SuratMasukPage />} />
           <Route path="/surat-masuk/create" element={<SuratMasukCreatePage />} />
+          <Route path="/surat-masuk/:id/edit" element={<SuratMasukEditPage />} />
           <Route path="/surat-masuk/:id" element={<SuratMasukDetailPage />} />
           <Route path="/disposisi" element={<DisposisiPage />} />
           <Route path="/surat-keluar" element={<SuratKeluarPage />} />
           <Route path="/surat-keluar/create" element={<SuratKeluarCreatePage />} />
+          <Route path="/surat-keluar/:id/edit" element={<SuratKeluarEditPage />} />
           <Route path="/surat-keluar/:id" element={<SuratKeluarDetailPage />} />
 
           {/* Settings Routes */}

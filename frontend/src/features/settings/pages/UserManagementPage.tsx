@@ -16,10 +16,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2, Edit } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import { UserFormDialog } from "../components/UserFormDialog"
 
 export default function UserManagementPage() {
     const [users, setUsers] = useState<User[]>([])
     const [loading, setLoading] = useState(true)
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [editUser, setEditUser] = useState<User | null>(null)
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -49,6 +52,24 @@ export default function UserManagementPage() {
         }
     }
 
+    const handleOpenCreate = () => {
+        setEditUser(null)
+        setDialogOpen(true)
+    }
+
+    const handleOpenEdit = (user: User) => {
+        setEditUser(user)
+        setDialogOpen(true)
+    }
+
+    const handleSuccess = (user: User) => {
+        if (editUser) {
+            setUsers(prev => prev.map(u => u.id === user.id ? user : u))
+        } else {
+            setUsers(prev => [...prev, user])
+        }
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -58,7 +79,7 @@ export default function UserManagementPage() {
                         Kelola akun pengguna yang memiliki akses ke sistem.
                     </p>
                 </div>
-                <Button>
+                <Button onClick={handleOpenCreate}>
                     <Plus className="mr-2 h-4 w-4" /> Tambah User
                 </Button>
             </div>
@@ -98,7 +119,7 @@ export default function UserManagementPage() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            <Button variant="ghost" size="icon">
+                                            <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(user)}>
                                                 <Edit className="h-4 w-4" />
                                             </Button>
                                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(user.id)}>
@@ -112,6 +133,13 @@ export default function UserManagementPage() {
                     </Table>
                 </div>
             )}
+
+            <UserFormDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                user={editUser}
+                onSuccess={handleSuccess}
+            />
         </div>
     )
 }

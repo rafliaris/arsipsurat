@@ -33,7 +33,7 @@ const formSchema = z.object({
     perihal: z.string().min(1, "Perihal wajib diisi"),
     tanggal_surat: z.string().min(1, "Tanggal surat wajib diisi"),
     kategori_id: z.string().min(1, "Kategori wajib dipilih"),
-    priority: z.enum(["rendah", "sedang", "tinggi", "mendesak"]).default("sedang"),
+    priority: z.enum(["rendah", "sedang", "tinggi", "mendesak"]),
 })
 
 export function SuratKeluarForm() {
@@ -201,38 +201,36 @@ export function SuratKeluarForm() {
                     <p className="text-xs text-muted-foreground">
                         Nomor surat akan di-generate otomatis oleh sistem setelah file diproses.
                     </p>
-                    <FormControl>
-                        <div
-                            {...getRootProps()}
-                            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-gray-300 hover:border-primary'
-                                }`}
-                        >
-                            <input {...getInputProps()} />
-                            {file ? (
-                                <div className="flex items-center justify-center gap-2 text-primary">
-                                    <span className="font-medium">{file.name}</span>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            setFile(null)
-                                        }}
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                    <Upload className="h-8 w-8" />
-                                    <p>Drag & drop file di sini, atau klik untuk memilih</p>
-                                    <p className="text-xs">Max 1 file (PDF, JPG, PNG)</p>
-                                </div>
-                            )}
-                        </div>
-                    </FormControl>
+                    <div
+                        {...getRootProps()}
+                        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-gray-300 hover:border-primary'
+                            }`}
+                    >
+                        <input {...getInputProps()} />
+                        {file ? (
+                            <div className="flex items-center justify-center gap-2 text-primary">
+                                <span className="font-medium">{file.name}</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setFile(null)
+                                    }}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                <Upload className="h-8 w-8" />
+                                <p>Drag &amp; drop file di sini, atau klik untuk memilih</p>
+                                <p className="text-xs">Max 1 file (PDF, JPG, PNG)</p>
+                            </div>
+                        )}
+                    </div>
                 </FormItem>
 
                 <div className="flex justify-end gap-4">

@@ -2,7 +2,7 @@ import { type SuratMasuk } from "../types"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, FileText, Download, Calendar, User, Tag } from "lucide-react"
+import { ArrowLeft, FileText, Download, Calendar, User, Tag, Trash2, Edit, ScanLine, Printer } from "lucide-react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { useNavigate } from "react-router-dom"
@@ -12,17 +12,57 @@ import { DisposisiForm } from "@/features/disposisi/components/DisposisiForm"
 import { useState, useRef } from "react"
 import { useReactToPrint } from "react-to-print"
 import { DisposisiPrint } from "@/features/disposisi/components/DisposisiPrint"
-import { Printer } from "lucide-react"
+import { suratMasukService } from "@/services/suratMasukService"
+import { toast } from "sonner"
 
-export function SuratMasukDetail({ data }: { data: SuratMasuk }) {
+export function SuratMasukDetail({ data, onDeleted }: { data: SuratMasuk; onDeleted?: () => void }) {
     const navigate = useNavigate()
     const [refreshTrigger, setRefreshTrigger] = useState(0)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [isOcr, setIsOcr] = useState(false)
 
     const handleDisposisiSuccess = () => {
         setRefreshTrigger(prev => prev + 1)
-        // Also refresh the print component data if needed, or it will re-fetch on next render if key changes or we just rely on mount
-        // Actually DisposisiPrint fetches on mount only. We can force re-render/re-mount by key or just keep it simple.
-        // It's acceptable for now.
+    }
+
+    const handleDelete = async () => {
+        if (!confirm(`Hapus surat "${data.nomor_surat}"? Tindakan ini tidak dapat dibatalkan.`)) return
+        setIsDeleting(true)
+        try {
+            await suratMasukService.delete(data.id)
+            toast.success("Surat masuk berhasil dihapus")
+            if (onDeleted) onDeleted()
+            else navigate("/surat-masuk")
+        } catch {
+            toast.error("Gagal menghapus surat masuk")
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    const handleDownload = async () => {
+        try {
+            const url = await suratMasukService.downloadFile(data.id)
+            const a = document.createElement("a")
+            a.href = url
+            a.download = `surat-masuk-${data.nomor_surat}.pdf`
+            a.click()
+            URL.revokeObjectURL(url)
+        } catch {
+            toast.error("Gagal mengunduh file surat")
+        }
+    }
+
+    const handleOcr = async () => {
+        setIsOcr(true)
+        try {
+            await suratMasukService.reprocessOCR(data.id)
+            toast.success("OCR berhasil diproses ulang")
+        } catch {
+            toast.error("Gagal memproses OCR")
+        } finally {
+            setIsOcr(false)
+        }
     }
 
     const printRef = useRef<HTMLDivElement>(null)
@@ -40,11 +80,25 @@ export function SuratMasukDetail({ data }: { data: SuratMasuk }) {
                     </Button>
                     <h2 className="text-2xl font-bold tracking-tight">Detail Surat Masuk</h2>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => handlePrint && handlePrint()}>
+                <div className="flex gap-2 flex-wrap">
+                    <Button variant="outline" size="sm" onClick={handleDownload} disabled={!data.file_path}>
+                        <Download className="mr-2 h-4 w-4" /> Unduh
+                    </Button>
+                    {data.file_path && (
+                        <Button variant="outline" size="sm" onClick={handleOcr} disabled={isOcr}>
+                            <ScanLine className="mr-2 h-4 w-4" /> {isOcr ? "Proses OCR..." : "Proses Ulang OCR"}
+                        </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/surat-masuk/${data.id}/edit`)}>
+                        <Edit className="mr-2 h-4 w-4" /> Edit
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handlePrint && handlePrint()}>
                         <Printer className="mr-2 h-4 w-4" /> Cetak Disposisi
                     </Button>
-                    <DisposisiForm suratId={data.id} onSuccess={handleDisposisiSuccess} />
+                    <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting}>
+                        <Trash2 className="mr-2 h-4 w-4" /> {isDeleting ? "Menghapus..." : "Hapus"}
+                    </Button>
+                    <DisposisiForm suratId={data.id} suratType="masuk" onSuccess={handleDisposisiSuccess} />
                 </div>
             </div>
 
@@ -89,7 +143,7 @@ export function SuratMasukDetail({ data }: { data: SuratMasuk }) {
                                     <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                         <Tag className="h-4 w-4" /> Kategori
                                     </span>
-                                    <span>{data.kategori}</span>
+                                    <span>{data.kategori?.nama ?? '-'}</span>
                                 </div>
                                 <div className="grid gap-1">
                                     <span className="text-sm font-medium text-muted-foreground">Status</span>
@@ -118,18 +172,16 @@ export function SuratMasukDetail({ data }: { data: SuratMasuk }) {
                                     <CardTitle className="flex items-center gap-2">
                                         <FileText className="h-5 w-5" /> Dokumen Surat
                                     </CardTitle>
-                                    {data.file_url && (
-                                        <Button variant="outline" size="sm" asChild>
-                                            <a href={data.file_url} download target="_blank" rel="noreferrer">
-                                                <Download className="mr-2 h-4 w-4" /> Unduh
-                                            </a>
+                                    {data.file_path && (
+                                        <Button variant="outline" size="sm" onClick={handleDownload}>
+                                            <Download className="mr-2 h-4 w-4" /> Unduh
                                         </Button>
                                     )}
                                 </CardHeader>
                                 <CardContent className="flex-1 bg-muted/20 p-0 overflow-hidden flex items-center justify-center">
-                                    {data.file_url ? (
+                                    {data.file_path ? (
                                         <iframe
-                                            src={data.file_url}
+                                            src={data.file_path}
                                             className="w-full h-full"
                                             title="Dokumen Surat"
                                         />

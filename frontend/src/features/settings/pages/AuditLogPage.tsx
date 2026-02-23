@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react"
-import { auditService, type AuditLog, type ListAuditParams } from "@/services/auditService"
+import { auditService, type AuditLog, type AuditStats, type ListAuditParams } from "@/services/auditService"
 import { toast } from "sonner"
 import { TableSkeleton } from "@/components/shared/TableSkeleton"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
     Select,
     SelectContent,
@@ -23,7 +24,8 @@ import {
 } from "@/components/ui/table"
 import { format } from "date-fns"
 import { id as idLocale } from "date-fns/locale"
-import { RefreshCw, Search } from "lucide-react"
+import { Activity, RefreshCw, Search, Trash2, UserCheck, UserX } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const ACTION_VARIANTS: Record<string, "default" | "destructive" | "secondary" | "outline"> = {
     CREATE: "default",
@@ -35,7 +37,9 @@ const ACTION_VARIANTS: Record<string, "default" | "destructive" | "secondary" | 
 
 export default function AuditLogPage() {
     const [logs, setLogs] = useState<AuditLog[]>([])
+    const [stats, setStats] = useState<AuditStats | null>(null)
     const [loading, setLoading] = useState(true)
+    const [statsLoading, setStatsLoading] = useState(true)
     const [params, setParams] = useState<ListAuditParams>({ limit: 50, days: 30 })
     const [search, setSearch] = useState("")
 
@@ -52,8 +56,21 @@ export default function AuditLogPage() {
         }
     }
 
+    const fetchStats = async () => {
+        try {
+            setStatsLoading(true)
+            const data = await auditService.getStats()
+            setStats(data)
+        } catch {
+            // Stats are optional — don't show error toast
+        } finally {
+            setStatsLoading(false)
+        }
+    }
+
     useEffect(() => {
         fetchLogs()
+        fetchStats()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [params])
 
@@ -73,12 +90,61 @@ export default function AuditLogPage() {
                         Riwayat aktivitas sistem (admin only).
                     </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
+                <Button variant="outline" size="sm" onClick={() => { fetchLogs(); fetchStats(); }} disabled={loading}>
                     <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                     Refresh
                 </Button>
             </div>
             <Separator />
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {statsLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-24" />
+                    ))
+                ) : stats ? (
+                    <>
+                        <Card>
+                            <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                                <CardTitle className="text-sm font-medium">Total Aktivitas</CardTitle>
+                                <Activity className="h-4 w-4 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{stats.total ?? 0}</div>
+                                <p className="text-xs text-muted-foreground">{params.days} hari terakhir</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                                <CardTitle className="text-sm font-medium">Login Sukses</CardTitle>
+                                <UserCheck className="h-4 w-4 text-green-500" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{stats.by_action?.LOGIN_SUCCESS ?? 0}</div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                                <CardTitle className="text-sm font-medium">Login Gagal</CardTitle>
+                                <UserX className="h-4 w-4 text-red-500" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{stats.by_action?.LOGIN_FAILED ?? 0}</div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                                <CardTitle className="text-sm font-medium">Penghapusan Data</CardTitle>
+                                <Trash2 className="h-4 w-4 text-orange-500" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold">{stats.by_action?.DELETE ?? 0}</div>
+                            </CardContent>
+                        </Card>
+                    </>
+                ) : null}
+            </div>
 
             {/* Filters */}
             <div className="flex gap-3 flex-wrap">
