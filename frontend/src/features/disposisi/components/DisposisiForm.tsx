@@ -11,13 +11,6 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
     Dialog,
@@ -28,46 +21,67 @@ import {
     DialogTrigger,
     DialogFooter
 } from "@/components/ui/dialog"
-import { useState } from "react"
-import { mockDisposisiService } from "@/services/mockDisposisiService"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { useState, useEffect } from "react"
+import { disposisiService } from "@/services/disposisiService"
+import { userService } from "@/services/userService"
+import { type User } from "@/features/settings/types"
 import { Send } from "lucide-react"
 import { toast } from "sonner"
 
 const formSchema = z.object({
-    tujuan: z.string().min(1, "Tujuan disposisi wajib diisi"),
+    to_user_id: z.string().min(1, "Tujuan disposisi wajib dipilih"),
     instruksi: z.string().min(1, "Instruksi wajib diisi"),
-    sifat: z.enum(["Biasa", "Penting", "Segera", "Rahasia"]),
-    batas_waktu: z.string().min(1, "Batas waktu wajib diisi"),
-    catatan: z.string().optional(),
+    keterangan: z.string().optional(),
+    deadline: z.string().optional(),
 })
 
 interface DisposisiFormProps {
-    suratId: string;
+    suratId: number;
+    suratType?: 'masuk' | 'keluar';
     onSuccess: () => void;
 }
 
-export function DisposisiForm({ suratId, onSuccess }: DisposisiFormProps) {
+export function DisposisiForm({ suratId, suratType = 'masuk', onSuccess }: DisposisiFormProps) {
     const [open, setOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [users, setUsers] = useState<User[]>([])
+
+    useEffect(() => {
+        if (open) {
+            userService.getAll()
+                .then(setUsers)
+                .catch(() => toast.error("Gagal memuat daftar user"))
+        }
+    }, [open])
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            tujuan: "",
+            to_user_id: "",
             instruksi: "",
-            sifat: "Biasa",
-            batas_waktu: new Date().toISOString().split('T')[0],
-            catatan: "",
+            keterangan: "",
+            deadline: "",
         },
     })
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
             setIsSubmitting(true)
-            await mockDisposisiService.create({
-                ...values,
-                surat_masuk_id: suratId,
-                dari: "Current User", // Mock user
+            await disposisiService.create({
+                surat_type: suratType,
+                surat_masuk_id: suratType === 'masuk' ? suratId : undefined,
+                surat_keluar_id: suratType === 'keluar' ? suratId : undefined,
+                to_user_id: Number(values.to_user_id),
+                instruksi: values.instruksi,
+                keterangan: values.keterangan || undefined,
+                deadline: values.deadline || undefined,
             })
             toast.success("Disposisi berhasil dikirim")
             setOpen(false)
@@ -99,13 +113,24 @@ export function DisposisiForm({ suratId, onSuccess }: DisposisiFormProps) {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
                             control={form.control}
-                            name="tujuan"
+                            name="to_user_id"
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Tujuan Disposisi (Kepada)</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Contoh: Kabid informatika" {...field} />
-                                    </FormControl>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Pilih penerima" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {users.map(u => (
+                                                <SelectItem key={u.id} value={String(u.id)}>
+                                                    {u.full_name} ({u.role})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -114,34 +139,10 @@ export function DisposisiForm({ suratId, onSuccess }: DisposisiFormProps) {
                         <div className="grid grid-cols-2 gap-4">
                             <FormField
                                 control={form.control}
-                                name="sifat"
+                                name="deadline"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Sifat</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Pilih sifat" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="Biasa">Biasa</SelectItem>
-                                                <SelectItem value="Penting">Penting</SelectItem>
-                                                <SelectItem value="Segera">Segera</SelectItem>
-                                                <SelectItem value="Rahasia">Rahasia</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
-                                name="batas_waktu"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Batas Waktu</FormLabel>
+                                        <FormLabel>Batas Waktu (Opsional)</FormLabel>
                                         <FormControl>
                                             <Input type="date" {...field} />
                                         </FormControl>
@@ -167,12 +168,12 @@ export function DisposisiForm({ suratId, onSuccess }: DisposisiFormProps) {
 
                         <FormField
                             control={form.control}
-                            name="catatan"
+                            name="keterangan"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Catatan Tambahan (Opsional)</FormLabel>
+                                    <FormLabel>Keterangan Tambahan (Opsional)</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="Catatan..." {...field} />
+                                        <Input placeholder="Keterangan..." {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

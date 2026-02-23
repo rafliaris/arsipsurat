@@ -1,37 +1,42 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { type Disposisi } from "../types"
-import { mockDisposisiService } from "@/services/mockDisposisiService"
+import { disposisiService } from "@/services/disposisiService"
 import { DashboardLayout } from "@/features/dashboard/components/DashboardLayout"
 import { DisposisiTable } from "../components/DisposisiTable"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { type DateRange } from "react-day-picker"
 import { TableSkeleton } from "@/components/shared/TableSkeleton"
+import { toast } from "sonner"
 
 export default function DisposisiPage() {
     const [list, setList] = useState<Disposisi[]>([])
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        const fetchDisposisi = async () => {
-            try {
-                const data = await mockDisposisiService.getAll()
-                setList(data)
-            } finally {
-                setLoading(false)
-            }
+    const fetchDisposisi = useCallback(async () => {
+        try {
+            setLoading(true)
+            const data = await disposisiService.getAll()
+            setList(data)
+        } catch (error) {
+            console.error("Failed to fetch disposisi:", error)
+            toast.error("Gagal memuat data disposisi")
+        } finally {
+            setLoading(false)
         }
-        fetchDisposisi()
     }, [])
+
+    useEffect(() => {
+        fetchDisposisi()
+    }, [fetchDisposisi])
 
     const [date, setDate] = useState<DateRange | undefined>()
 
     const filteredData = list.filter((item) => {
         if (!date?.from) return true
-        const itemDate = new Date(item.batas_waktu)
+        const itemDate = new Date(item.deadline ?? item.created_at)
         const from = date.from
         const to = date.to || date.from
 
-        // Reset hours to compare dates only
         itemDate.setHours(0, 0, 0, 0)
         from.setHours(0, 0, 0, 0)
         to.setHours(0, 0, 0, 0)
@@ -57,7 +62,7 @@ export default function DisposisiPage() {
                 {loading ? (
                     <TableSkeleton columns={5} />
                 ) : (
-                    <DisposisiTable data={filteredData} onView={(id) => console.log("View Disposisi", id)} />
+                    <DisposisiTable data={filteredData} onRefresh={fetchDisposisi} />
                 )}
             </div>
         </DashboardLayout>

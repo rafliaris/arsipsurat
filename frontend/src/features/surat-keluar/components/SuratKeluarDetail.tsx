@@ -3,20 +3,52 @@ import { type SuratKeluar } from "../types"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, FileText, Download, Calendar, User, Tag, Shield, Printer } from "lucide-react"
+import { ArrowLeft, FileText, Download, Calendar, User, Tag, Shield, Printer, Trash2, Edit } from "lucide-react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { useNavigate } from "react-router-dom"
 import { useReactToPrint } from "react-to-print"
+import { suratKeluarService } from "@/services/suratKeluarService"
+import { toast } from "sonner"
+import { useState } from "react"
 
-export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
+export function SuratKeluarDetail({ data, onDeleted }: { data: SuratKeluar; onDeleted?: () => void }) {
     const navigate = useNavigate()
     const contentRef = useRef<HTMLDivElement>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     const handlePrint = useReactToPrint({
         contentRef: contentRef,
-        documentTitle: `Surat_Keluar_${data.nomor_surat.replace(/\//g, "-")}`,
+        documentTitle: `Surat_Keluar_${data.nomor_surat_keluar.replace(/\//g, "-")}`,
     })
+
+    const handleDelete = async () => {
+        if (!confirm(`Hapus surat keluar "${data.nomor_surat_keluar}"? Tindakan ini tidak dapat dibatalkan.`)) return
+        setIsDeleting(true)
+        try {
+            await suratKeluarService.delete(data.id)
+            toast.success("Surat keluar berhasil dihapus")
+            if (onDeleted) onDeleted()
+            else navigate("/surat-keluar")
+        } catch {
+            toast.error("Gagal menghapus surat keluar")
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    const handleDownload = async () => {
+        try {
+            const url = await suratKeluarService.downloadFile(data.id)
+            const a = document.createElement("a")
+            a.href = url
+            a.download = `surat-keluar-${data.nomor_surat_keluar.replace(/\//g, "-")}.pdf`
+            a.click()
+            URL.revokeObjectURL(url)
+        } catch {
+            toast.error("Gagal mengunduh file surat")
+        }
+    }
 
     return (
         <div className="space-y-6">
@@ -27,9 +59,20 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
                     </Button>
                     <h2 className="text-2xl font-bold tracking-tight">Detail Surat Keluar</h2>
                 </div>
-                <Button variant="outline" onClick={() => handlePrint()}>
-                    <Printer className="mr-2 h-4 w-4" /> Cetak / PDF
-                </Button>
+                <div className="flex gap-2 flex-wrap">
+                    <Button variant="outline" size="sm" onClick={handleDownload} disabled={!data.file_path}>
+                        <Download className="mr-2 h-4 w-4" /> Unduh
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/surat-keluar/${data.id}/edit`)}>
+                        <Edit className="mr-2 h-4 w-4" /> Edit
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handlePrint()}>
+                        <Printer className="mr-2 h-4 w-4" /> Cetak / PDF
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting}>
+                        <Trash2 className="mr-2 h-4 w-4" /> {isDeleting ? "Menghapus..." : "Hapus"}
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -37,14 +80,14 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
                 <Card className="md:col-span-1">
                     <CardHeader>
                         <CardTitle>Informasi Surat</CardTitle>
-                        <CardDescription>{data.nomor_surat}</CardDescription>
+                        <CardDescription>{data.nomor_surat_keluar}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid gap-1">
                             <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <User className="h-4 w-4" /> Tujuan
                             </span>
-                            <span className="font-medium">{data.tujuan}</span>
+                            <span className="font-medium">{data.penerima}</span>
                         </div>
                         <div className="grid gap-1">
                             <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -56,13 +99,13 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
                             <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <Tag className="h-4 w-4" /> Kategori
                             </span>
-                            <span>{data.kategori}</span>
+                            <span>{data.kategori?.nama}</span>
                         </div>
                         <div className="grid gap-1">
                             <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <Shield className="h-4 w-4" /> Sifat
                             </span>
-                            <span className="font-medium">{data.sifat}</span>
+                            <span className="font-medium">{data.priority}</span>
                         </div>
                         <div className="grid gap-1">
                             <span className="text-sm font-medium text-muted-foreground">Status</span>
@@ -92,11 +135,9 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
                             <CardTitle className="flex items-center gap-2">
                                 <FileText className="h-5 w-5" /> Draft Surat
                             </CardTitle>
-                            {data.file_url && (
-                                <Button variant="outline" size="sm" asChild>
-                                    <a href={data.file_url} download target="_blank" rel="noreferrer">
-                                        <Download className="mr-2 h-4 w-4" /> Unduh Lampiran
-                                    </a>
+                            {data.file_path && (
+                                <Button variant="outline" size="sm" onClick={handleDownload}>
+                                    <Download className="mr-2 h-4 w-4" /> Unduh Lampiran
                                 </Button>
                             )}
                         </CardHeader>
@@ -118,12 +159,12 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
                                                 <tr>
                                                     <td className="w-24">Nomor</td>
                                                     <td className="w-4">:</td>
-                                                    <td>{data.nomor_surat}</td>
+                                                    <td>{data.nomor_surat_keluar}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Sifat</td>
                                                     <td>:</td>
-                                                    <td>{data.sifat}</td>
+                                                    <td>{data.priority}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Lampiran</td>
@@ -146,7 +187,7 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
                                 {/* Tujuan */}
                                 <div className="mb-8">
                                     <p>Yth.</p>
-                                    <p className="font-bold">{data.tujuan}</p>
+                                    <p className="font-bold">{data.penerima}</p>
                                     <p>di</p>
                                     <p className="pl-8">Tempat</p>
                                 </div>

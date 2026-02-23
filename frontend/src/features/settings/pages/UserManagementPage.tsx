@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { type User } from "../types"
 import { toast } from "sonner"
 import { TableSkeleton } from "@/components/shared/TableSkeleton"
-import { mockUserService } from "@/services/mockUserService"
+import { userService } from "@/services/userService"
 import {
     Table,
     TableBody,
@@ -16,16 +16,22 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2, Edit } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import { UserFormDialog } from "../components/UserFormDialog"
 
 export default function UserManagementPage() {
     const [users, setUsers] = useState<User[]>([])
     const [loading, setLoading] = useState(true)
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [editUser, setEditUser] = useState<User | null>(null)
 
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const data = await mockUserService.getAll()
+                const data = await userService.getAll()
                 setUsers(data)
+            } catch (error) {
+                console.error("Failed to fetch users:", error)
+                toast.error("Gagal memuat data pengguna")
             } finally {
                 setLoading(false)
             }
@@ -35,9 +41,32 @@ export default function UserManagementPage() {
 
     const handleDelete = async (id: number) => {
         if (confirm("Apakah anda yakin ingin menghapus user ini?")) {
-            await mockUserService.delete(id)
-            setUsers(users.filter(u => u.id !== id))
-            toast.success("User berhasil dihapus")
+            try {
+                await userService.delete(id)
+                setUsers(users.filter(u => u.id !== id))
+                toast.success("User berhasil dihapus")
+            } catch (error) {
+                console.error("Failed to delete user:", error)
+                toast.error("Gagal menghapus user")
+            }
+        }
+    }
+
+    const handleOpenCreate = () => {
+        setEditUser(null)
+        setDialogOpen(true)
+    }
+
+    const handleOpenEdit = (user: User) => {
+        setEditUser(user)
+        setDialogOpen(true)
+    }
+
+    const handleSuccess = (user: User) => {
+        if (editUser) {
+            setUsers(prev => prev.map(u => u.id === user.id ? user : u))
+        } else {
+            setUsers(prev => [...prev, user])
         }
     }
 
@@ -50,7 +79,7 @@ export default function UserManagementPage() {
                         Kelola akun pengguna yang memiliki akses ke sistem.
                     </p>
                 </div>
-                <Button>
+                <Button onClick={handleOpenCreate}>
                     <Plus className="mr-2 h-4 w-4" /> Tambah User
                 </Button>
             </div>
@@ -90,7 +119,7 @@ export default function UserManagementPage() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
-                                            <Button variant="ghost" size="icon">
+                                            <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(user)}>
                                                 <Edit className="h-4 w-4" />
                                             </Button>
                                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(user.id)}>
@@ -104,6 +133,13 @@ export default function UserManagementPage() {
                     </Table>
                 </div>
             )}
+
+            <UserFormDialog
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                user={editUser}
+                onSuccess={handleSuccess}
+            />
         </div>
     )
 }

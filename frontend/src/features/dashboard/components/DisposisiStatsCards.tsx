@@ -4,11 +4,16 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
-import { Zap, AlertCircle, FileText, Lock } from "lucide-react"
-import { mockDisposisiStats } from "@/services/mockDashboardService"
+import { Zap, AlertCircle, FileText, CheckCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import type { DashboardStats } from "@/features/dashboard/types"
 
-export function DisposisiStatsCards({ loading }: { loading?: boolean }) {
+interface DisposisiStatsCardsProps {
+    loading?: boolean;
+    stats?: DashboardStats;
+}
+
+export function DisposisiStatsCards({ loading, stats }: DisposisiStatsCardsProps) {
     if (loading) {
         return (
             <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
@@ -28,42 +33,55 @@ export function DisposisiStatsCards({ loading }: { loading?: boolean }) {
         )
     }
 
-    const getIcon = (name: string) => {
-        switch (name) {
-            case 'Segera': return <Zap className="h-4 w-4 text-red-500" />
-            case 'Penting': return <AlertCircle className="h-4 w-4 text-orange-500" />
-            case 'Rutin': return <FileText className="h-4 w-4 text-blue-500" />
-            case 'Rahasia': return <Lock className="h-4 w-4 text-purple-500" />
-            default: return <FileText className="h-4 w-4 text-muted-foreground" />
-        }
+    if (!stats) {
+        return null;
     }
 
-    const getColor = (name: string) => {
-        switch (name) {
-            case 'Segera': return "text-red-600"
-            case 'Penting': return "text-orange-600"
-            case 'Rutin': return "text-blue-600"
-            case 'Rahasia': return "text-purple-600"
-            default: return "text-foreground"
+    // For now, we'll show pending and completed dispositions
+    // In the future, this could be expanded based on available API data
+    const disposisiData = [
+        {
+            name: 'Pending',
+            value: stats.disposisi_pending,
+            icon: <AlertCircle className="h-4 w-4 text-orange-500" />,
+            color: "text-orange-600"
+        },
+        {
+            name: 'Selesai',
+            value: stats.disposisi_selesai,
+            icon: <CheckCircle className="h-4 w-4 text-green-500" />,
+            color: "text-green-600"
+        },
+        {
+            name: 'Notifikasi',
+            value: stats.notifikasi_unread,
+            icon: <Zap className="h-4 w-4 text-blue-500" />,
+            color: "text-blue-600"
+        },
+        {
+            name: 'Kategori',
+            value: stats.total_kategori,
+            icon: <FileText className="h-4 w-4 text-purple-500" />,
+            color: "text-purple-600"
         }
-    }
+    ];
 
     return (
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-            {mockDisposisiStats.map((stat) => (
+            {disposisiData.map((stat) => (
                 <Card key={stat.name}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
                             {stat.name}
                         </CardTitle>
-                        {getIcon(stat.name)}
+                        {stat.icon}
                     </CardHeader>
                     <CardContent>
-                        <div className={`text-2xl font-bold ${getColor(stat.name)}`}>
+                        <div className={`text-2xl font-bold ${stat.color}`}>
                             {stat.value}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            Disposisi {stat.name}
+                            {stat.name} saat ini
                         </p>
                     </CardContent>
                 </Card>

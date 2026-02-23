@@ -21,35 +21,42 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { useDropzone } from "react-dropzone"
 import { Upload, X } from "lucide-react"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { mockSuratKeluarService } from "@/services/mockSuratKeluarService"
+import { suratKeluarService } from "@/services/suratKeluarService"
+import { kategoriService } from "@/services/kategoriService"
+import { type Kategori } from "@/features/settings/types"
 import { toast } from "sonner"
 
 const formSchema = z.object({
-    nomor_surat: z.string().min(1, "Nomor surat wajib diisi"),
-    tujuan: z.string().min(1, "Tujuan penerima wajib diisi"),
+    penerima: z.string().min(1, "Penerima wajib diisi"),
     perihal: z.string().min(1, "Perihal wajib diisi"),
     tanggal_surat: z.string().min(1, "Tanggal surat wajib diisi"),
-    kategori: z.string().min(1, "Kategori wajib dipilih"),
-    sifat: z.enum(["Biasa", "Penting", "Rahasia"]),
-    file: z.any().optional(),
+    kategori_id: z.string().min(1, "Kategori wajib dipilih"),
+    priority: z.enum(["rendah", "sedang", "tinggi", "mendesak"]),
 })
 
 export function SuratKeluarForm() {
     const navigate = useNavigate()
     const [file, setFile] = useState<File | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [kategoris, setKategoris] = useState<Kategori[]>([])
+
+    // Load kategori from API
+    useEffect(() => {
+        kategoriService.getAll({ is_active: true })
+            .then(setKategoris)
+            .catch(() => toast.error("Gagal memuat daftar kategori"))
+    }, [])
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            nomor_surat: "",
-            tujuan: "",
+            penerima: "",
             perihal: "",
             tanggal_surat: new Date().toISOString().split('T')[0],
-            kategori: "",
-            sifat: "Biasa",
+            kategori_id: "",
+            priority: "sedang",
         },
     })
 
@@ -69,14 +76,21 @@ export function SuratKeluarForm() {
     })
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
+        if (!file) {
+            toast.error("File surat wajib dilampirkan")
+            return
+        }
         try {
             setIsSubmitting(true)
-            await mockSuratKeluarService.create({
-                ...values,
-                status: 'draft', // Default to draft for new outgoing mail
-                file_url: file ? URL.createObjectURL(file) : undefined
+            await suratKeluarService.create({
+                file,
+                penerima: values.penerima,
+                perihal: values.perihal,
+                tanggal_surat: values.tanggal_surat,
+                kategori_id: Number(values.kategori_id),
+                priority: values.priority,
             })
-            toast.success("Surat keluar berhasil dibuat")
+            toast.success("Surat keluar berhasil dibuat. Nomor surat akan di-generate otomatis oleh sistem.")
             navigate("/surat-keluar")
         } catch (error) {
             console.error(error)
@@ -92,23 +106,10 @@ export function SuratKeluarForm() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                         control={form.control}
-                        name="nomor_surat"
+                        name="penerima"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Nomor Surat</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="Contoh: 001/OUT/I/2026" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="tujuan"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Tujuan / Penerima</FormLabel>
+                                <FormLabel>Penerima / Tujuan</FormLabel>
                                 <FormControl>
                                     <Input placeholder="Nama instansi/perorangan" {...field} />
                                 </FormControl>
@@ -131,7 +132,7 @@ export function SuratKeluarForm() {
                     />
                     <FormField
                         control={form.control}
-                        name="kategori"
+                        name="kategori_id"
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Kategori</FormLabel>
@@ -142,11 +143,14 @@ export function SuratKeluarForm() {
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="Undangan">Undangan</SelectItem>
-                                        <SelectItem value="Balasan">Balasan</SelectItem>
-                                        <SelectItem value="Pemberitahuan">Pemberitahuan</SelectItem>
-                                        <SelectItem value="Penawaran">Penawaran</SelectItem>
-                                        <SelectItem value="Lainnya">Lainnya</SelectItem>
+                                        {kategoris.map((k) => (
+                                            <SelectItem key={k.id} value={String(k.id)}>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: k.color }} />
+                                                    {k.nama}
+                                                </div>
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -155,20 +159,21 @@ export function SuratKeluarForm() {
                     />
                     <FormField
                         control={form.control}
-                        name="sifat"
+                        name="priority"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Sifat Surat</FormLabel>
+                                <FormLabel>Prioritas</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Pilih sifat" />
+                                            <SelectValue placeholder="Pilih prioritas" />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="Biasa">Biasa</SelectItem>
-                                        <SelectItem value="Penting">Penting</SelectItem>
-                                        <SelectItem value="Rahasia">Rahasia</SelectItem>
+                                        <SelectItem value="rendah">Rendah</SelectItem>
+                                        <SelectItem value="sedang">Sedang</SelectItem>
+                                        <SelectItem value="tinggi">Tinggi</SelectItem>
+                                        <SelectItem value="mendesak">Mendesak</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -191,48 +196,44 @@ export function SuratKeluarForm() {
                     )}
                 />
 
-                <FormField
-                    control={form.control}
-                    name="file"
-                    render={() => (
-                        <FormItem>
-                            <FormLabel>File Draft (Opsional)</FormLabel>
-                            <FormControl>
-                                <div
-                                    {...getRootProps()}
-                                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-gray-300 hover:border-primary'
-                                        }`}
+                <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none">
+                        File Surat (PDF/Image) <span className="text-red-500">*</span>
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                        Nomor surat akan di-generate otomatis oleh sistem setelah file diproses.
+                    </p>
+                    <div
+                        {...getRootProps()}
+                        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-gray-300 hover:border-primary'
+                            }`}
+                    >
+                        <input {...getInputProps()} />
+                        {file ? (
+                            <div className="flex items-center justify-center gap-2 text-primary">
+                                <span className="font-medium">{file.name}</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setFile(null)
+                                    }}
                                 >
-                                    <input {...getInputProps()} />
-                                    {file ? (
-                                        <div className="flex items-center justify-center gap-2 text-primary">
-                                            <span className="font-medium">{file.name}</span>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    setFile(null)
-                                                }}
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                            <Upload className="h-8 w-8" />
-                                            <p>Drag & drop file di sini, atau klik untuk memilih</p>
-                                            <p className="text-xs">DOCX, PDF, or Images</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                <Upload className="h-8 w-8" />
+                                <p>Drag &amp; drop file di sini, atau klik untuk memilih</p>
+                                <p className="text-xs">Max 1 file (PDF, JPG, PNG)</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
                 <div className="flex justify-end gap-4">
                     <Button type="button" variant="outline" onClick={() => navigate("/surat-keluar")}>

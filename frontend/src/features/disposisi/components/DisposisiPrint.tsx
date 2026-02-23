@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { type SuratMasuk } from "@/features/surat-masuk/types";
 import { type Disposisi } from "@/features/disposisi/types";
-import { mockDisposisiService } from "@/services/mockDisposisiService";
+import { disposisiService } from "@/services/disposisiService";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
@@ -15,8 +15,8 @@ export const DisposisiPrint = React.forwardRef<HTMLDivElement, DisposisiPrintPro
     useEffect(() => {
         const fetchDisposisi = async () => {
             if (surat?.id) {
-                const data = await mockDisposisiService.getBySuratMasukId(surat.id);
-                setDisposisiList(data);
+                const data = await disposisiService.getAll({ surat_type: 'masuk' });
+                setDisposisiList(data.filter(d => d.surat_masuk_id === surat.id));
             }
         };
         fetchDisposisi();
@@ -53,7 +53,7 @@ export const DisposisiPrint = React.forwardRef<HTMLDivElement, DisposisiPrintPro
                     <tr>
                         <td className="border border-black p-2 font-bold">Tanggal Surat</td>
                         <td className="border border-black p-2">{format(new Date(surat.tanggal_surat), "dd MMM yyyy", { locale: id })}</td>
-                        <td className="border border-black p-2 font-bold">Sifat</td>
+                        <td className="border border-black p-2 font-bold">Status</td>
                         <td className="border border-black p-2">{surat.status}</td>
                     </tr>
                     <tr>
@@ -70,16 +70,18 @@ export const DisposisiPrint = React.forwardRef<HTMLDivElement, DisposisiPrintPro
                     {disposisiList.map((d) => (
                         <div key={d.id} className="border border-black p-4 text-sm">
                             <div className="flex justify-between mb-2 border-b border-black border-dashed pb-2">
-                                <span className="font-bold">Dari: {d.dari}</span>
-                                <span className="font-bold">Kepada: {d.tujuan}</span>
+                                <span className="font-bold">Dari: User #{d.from_user_id}</span>
+                                <span className="font-bold">Kepada: User #{d.to_user_id}</span>
                             </div>
                             <div className="mb-2">
                                 <span className="font-bold">Instruksi:</span>
                                 <p>{d.instruksi}</p>
                             </div>
                             <div className="flex justify-between text-xs mt-4">
-                                <span>Sifat: {d.sifat}</span>
-                                <span>Batas Waktu: {format(new Date(d.batas_waktu), "dd MMM yyyy", { locale: id })}</span>
+                                <span>Status: {d.status}</span>
+                                {d.deadline && (
+                                    <span>Batas Waktu: {format(new Date(d.deadline), "dd MMM yyyy", { locale: id })}</span>
+                                )}
                             </div>
                         </div>
                     ))}

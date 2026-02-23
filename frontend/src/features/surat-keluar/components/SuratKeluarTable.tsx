@@ -28,19 +28,19 @@ export function SuratKeluarTable({
     onView,
 }: {
     data: SuratKeluar[]
-    onView: (id: string) => void
+    onView: (id: number) => void
 }) {
     const [sorting, setSorting] = useState<SortingState>([])
 
     const columns: ColumnDef<SuratKeluar>[] = [
         {
-            accessorKey: "nomor_surat",
+            accessorKey: "nomor_surat_keluar",
             header: "No. Surat",
-            cell: ({ row }) => <div className="font-medium">{row.getValue("nomor_surat")}</div>,
+            cell: ({ row }) => <div className="font-medium">{row.getValue("nomor_surat_keluar")}</div>,
         },
         {
-            accessorKey: "tujuan",
-            header: "Tujuan",
+            accessorKey: "penerima",
+            header: "Penerima",
         },
         {
             accessorKey: "perihal",
@@ -63,17 +63,17 @@ export function SuratKeluarTable({
                 let className = ""
 
                 switch (status) {
-                    case "terkirim":
+                    case "selesai":
                         variant = "default"
                         className = "bg-green-500 hover:bg-green-600"
                         break
-                    case "draft":
+                    case "proses":
                         variant = "secondary"
-                        className = "bg-gray-500 text-white hover:bg-gray-600"
+                        className = "bg-blue-500 text-white hover:bg-blue-600"
                         break
-                    case "arsip":
+                    case "pending":
                         variant = "outline"
-                        className = ""
+                        className = "bg-orange-500 text-white"
                         break
                 }
 

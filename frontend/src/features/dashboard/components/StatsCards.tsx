@@ -5,13 +5,15 @@ import {
     CardTitle,
 } from "@/components/ui/card"
 import { Mail, Send, Clock, CheckCircle } from "lucide-react"
-import { mockDashboardStats } from "@/services/mockDashboardService"
-
 import { Skeleton } from "@/components/ui/skeleton"
+import type { DashboardStats } from "@/features/dashboard/types"
 
-export function StatsCards({ loading }: { loading?: boolean }) {
-    const stats = mockDashboardStats;
+interface StatsCardsProps {
+    loading?: boolean;
+    stats?: DashboardStats;
+}
 
+export function StatsCards({ loading, stats }: StatsCardsProps) {
     if (loading) {
         return (
             <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
@@ -31,6 +33,10 @@ export function StatsCards({ loading }: { loading?: boolean }) {
         )
     }
 
+    if (!stats) {
+        return null;
+    }
+
     return (
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
             <Card>
@@ -41,9 +47,9 @@ export function StatsCards({ loading }: { loading?: boolean }) {
                     <InboxIcon className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{stats.surat_masuk_count}</div>
+                    <div className="text-2xl font-bold">{stats.surat_masuk_bulan_ini}</div>
                     <p className="text-xs text-muted-foreground">
-                        {stats.surat_masuk_change} dari bulan lalu
+                        Total: {stats.total_surat_masuk}
                     </p>
                 </CardContent>
             </Card>
@@ -55,35 +61,35 @@ export function StatsCards({ loading }: { loading?: boolean }) {
                     <SendIcon className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{stats.surat_keluar_count}</div>
+                    <div className="text-2xl font-bold">{stats.surat_keluar_bulan_ini}</div>
                     <p className="text-xs text-muted-foreground">
-                        {stats.surat_keluar_change} dari bulan lalu
+                        Total: {stats.total_surat_keluar}
                     </p>
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Pending Klasifikasi</CardTitle>
+                    <CardTitle className="text-sm font-medium">Disposisi Pending</CardTitle>
                     <ClockIcon className="h-4 w-4 text-orange-500" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold text-orange-600">{stats.pending_classification}</div>
+                    <div className="text-2xl font-bold text-orange-600">{stats.disposisi_pending}</div>
                     <p className="text-xs text-muted-foreground">
-                        Perlu review segera
+                        Perlu tindak lanjut
                     </p>
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
-                        Selesai Hari Ini
+                        Disposisi Selesai
                     </CardTitle>
                     <CheckCircleIcon className="h-4 w-4 text-green-500" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold text-green-600">{stats.completed_today}</div>
+                    <div className="text-2xl font-bold text-green-600">{stats.disposisi_selesai}</div>
                     <p className="text-xs text-muted-foreground">
-                        +15% produktivitas
+                        Task completed
                     </p>
                 </CardContent>
             </Card>

@@ -1,14 +1,16 @@
 import { DashboardLayout } from "@/features/dashboard/components/DashboardLayout"
 import { SuratMasukTable } from "../components/SuratMasukTable"
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { Plus, FileDown, FileText } from "lucide-react"
 import { useEffect, useState } from "react"
 import { type SuratMasuk } from "../types"
-import { mockSuratMasukService } from "@/services/mockSuratMasukService"
+import { suratMasukService } from "@/services/suratMasukService"
+import { reportService } from "@/services/reportService"
 import { useNavigate } from "react-router-dom"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { type DateRange } from "react-day-picker"
 import { TableSkeleton } from "@/components/shared/TableSkeleton"
+import { toast } from "sonner"
 
 export default function SuratMasukPage() {
     const [data, setData] = useState<SuratMasuk[]>([])
@@ -18,8 +20,11 @@ export default function SuratMasukPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const result = await mockSuratMasukService.getAll()
+                const result = await suratMasukService.getAll()
                 setData(result)
+            } catch (error) {
+                console.error("Failed to fetch surat masuk:", error)
+                toast.error("Gagal memuat data surat masuk")
             } finally {
                 setLoading(false)
             }
@@ -54,6 +59,26 @@ export default function SuratMasukPage() {
                 </div>
                 <div className="flex items-center space-x-2">
                     <DatePickerWithRange date={date} setDate={setDate} />
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                            try { await reportService.exportSuratMasukExcel() }
+                            catch { toast.error("Gagal mengekspor Excel") }
+                        }}
+                    >
+                        <FileDown className="mr-2 h-4 w-4" /> Excel
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                            try { await reportService.exportSuratMasukPDF() }
+                            catch { toast.error("Gagal mengekspor PDF") }
+                        }}
+                    >
+                        <FileText className="mr-2 h-4 w-4" /> PDF
+                    </Button>
                     <Button onClick={() => navigate("/surat-masuk/create")}>
                         <Plus className="mr-2 h-4 w-4" /> Tambah Surat
                     </Button>

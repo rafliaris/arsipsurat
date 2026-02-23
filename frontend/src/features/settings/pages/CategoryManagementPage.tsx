@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
-import { type Category } from "../types"
+import { type Kategori } from "../types"
+import { kategoriService } from "@/services/kategoriService"
 import { toast } from "sonner"
 import { TableSkeleton } from "@/components/shared/TableSkeleton"
-import { mockCategoryService } from "@/services/mockCategoryService"
 import {
     Table,
     TableBody,
@@ -18,14 +18,17 @@ import { format } from "date-fns"
 import { id } from "date-fns/locale"
 
 export default function CategoryManagementPage() {
-    const [categories, setCategories] = useState<Category[]>([])
+    const [categories, setCategories] = useState<Kategori[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const data = await mockCategoryService.getAll()
+                const data = await kategoriService.getAll()
                 setCategories(data)
+            } catch (error) {
+                console.error("Failed to fetch categories:", error)
+                toast.error("Gagal memuat data kategori")
             } finally {
                 setLoading(false)
             }
@@ -33,11 +36,16 @@ export default function CategoryManagementPage() {
         fetchCategories()
     }, [])
 
-    const handleDelete = async (id: string) => {
+    const handleDelete = async (id: number) => {
         if (confirm("Apakah anda yakin ingin menghapus kategori ini?")) {
-            await mockCategoryService.delete(id)
-            setCategories(categories.filter(c => c.id !== id))
-            toast.success("Kategori berhasil dihapus")
+            try {
+                await kategoriService.delete(id)
+                setCategories(categories.filter(c => c.id !== id))
+                toast.success("Kategori berhasil dihapus")
+            } catch (error) {
+                console.error("Failed to delete category:", error)
+                toast.error("Gagal menghapus kategori")
+            }
         }
     }
 
@@ -62,6 +70,7 @@ export default function CategoryManagementPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Nama Kategori</TableHead>
+                                <TableHead>Slug</TableHead>
                                 <TableHead>Deskripsi</TableHead>
                                 <TableHead>Warna Label</TableHead>
                                 <TableHead>Dibuat</TableHead>
@@ -69,10 +78,17 @@ export default function CategoryManagementPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {categories.map((category) => (
+                            {categories.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                        Tidak ada kategori.
+                                    </TableCell>
+                                </TableRow>
+                            ) : categories.map((category) => (
                                 <TableRow key={category.id}>
-                                    <TableCell className="font-medium">{category.name}</TableCell>
-                                    <TableCell>{category.description}</TableCell>
+                                    <TableCell className="font-medium">{category.nama}</TableCell>
+                                    <TableCell className="text-muted-foreground text-sm">{category.slug}</TableCell>
+                                    <TableCell>{category.deskripsi}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             <div
