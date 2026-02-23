@@ -2,7 +2,7 @@
 API Router - aggregates all endpoint routers
 """
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, kategori, surat_masuk, surat_keluar, disposisi, notifications, dashboard, audit, settings, reports
+from app.api.v1.endpoints import auth, kategori, surat_masuk, surat_keluar, disposisi, notifications, dashboard, audit, settings, reports, users
 
 # Create main API router
 api_router = APIRouter()
@@ -18,6 +18,8 @@ api_router.include_router(dashboard.router, tags=["Dashboard"])
 api_router.include_router(audit.router, tags=["Audit Logs"])
 api_router.include_router(settings.router, tags=["Settings"])
 api_router.include_router(reports.router, tags=["Reports"])
+api_router.include_router(users.router, tags=["Users"])
+
 
 # TODO: Add more routers as they are created
 # api_router.include_router(users.router, prefix="/users", tags=["Users"])
