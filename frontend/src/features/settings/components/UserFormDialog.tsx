@@ -30,7 +30,7 @@ import { Switch } from "@/components/ui/switch"
 import { userService } from "@/services/userService"
 import { type User } from "../types"
 import { toast } from "sonner"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 const formSchema = z.object({
     username: z.string().min(3, "Username minimal 3 karakter"),
@@ -54,15 +54,29 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        values: {
-            username: user?.username ?? "",
-            email: user?.email ?? "",
-            full_name: user?.full_name ?? "",
-            role: user?.role ?? "staff",
-            is_active: user?.is_active ?? true,
+        defaultValues: {
+            username: "",
+            email: "",
+            full_name: "",
+            role: "staff",
+            is_active: true,
             password: "",
         },
     })
+
+    // Reset form whenever the dialog opens with new user data
+    useEffect(() => {
+        if (open) {
+            form.reset({
+                username: user?.username ?? "",
+                email: user?.email ?? "",
+                full_name: user?.full_name ?? "",
+                role: user?.role ?? "staff",
+                is_active: user?.is_active ?? true,
+                password: "",
+            })
+        }
+    }, [open, user])
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         setIsSubmitting(true)

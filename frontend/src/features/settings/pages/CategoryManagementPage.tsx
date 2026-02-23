@@ -99,7 +99,9 @@ export default function CategoryManagementPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        {format(new Date(category.created_at), "dd MMM yyyy", { locale: id })}
+                                        {category.created_at
+                                            ? format(new Date(category.created_at), "dd MMM yyyy", { locale: id })
+                                            : "-"}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">

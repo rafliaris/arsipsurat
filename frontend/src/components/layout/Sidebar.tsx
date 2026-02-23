@@ -4,13 +4,11 @@ import {
     Inbox,
     Send,
     FileCheck,
-    Bell,
     Settings,
     Users,
     GalleryVerticalEnd
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 
 const sidebarItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -31,10 +29,6 @@ export function SidebarContent() {
                     <GalleryVerticalEnd className="h-6 w-6" />
                     <span className="">Arsip Surat</span>
                 </Link>
-                <Button variant="outline" size="icon" className="ml-auto h-8 w-8">
-                    <Bell className="h-4 w-4" />
-                    <span className="sr-only">Toggle notifications</span>
-                </Button>
             </div>
             <div className="flex-1">
                 <nav className="grid items-start px-2 text-sm font-medium lg:px-4">

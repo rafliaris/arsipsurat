@@ -12,7 +12,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2, Edit } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
@@ -101,7 +101,6 @@ export default function UserManagementPage() {
                                 <TableRow key={user.id}>
                                     <TableCell className="flex items-center gap-4">
                                         <Avatar>
-                                            <AvatarImage src={user.avatar} />
                                             <AvatarFallback>{user.full_name.charAt(0)}</AvatarFallback>
                                         </Avatar>
                                         <div>
