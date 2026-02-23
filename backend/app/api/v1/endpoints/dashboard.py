@@ -87,7 +87,7 @@ def get_dashboard_stats(
     # Disposisi pending (for current user or from current user)
     disposisi_pending = db.query(func.count(Disposisi.id)).filter(
         Disposisi.deleted_at == None,
-        Disposisi.status.in_([StatusDisposisi.PENDING, StatusDisposisi.PROSES]),
+        Disposisi.status.in_([StatusDisposisi.PENDING, StatusDisposisi.DITINDAKLANJUTI]),
         (Disposisi.to_user_id == current_user.id) | (Disposisi.from_user_id == current_user.id)
     ).scalar() or 0
     
@@ -269,7 +269,7 @@ def get_recent_activity(
             'id': disp.id,
             'type': 'disposisi',
             'title': f"Disposisi: {disp.instruksi[:50] if disp.instruksi else 'N/A'}",
-            'description': disp.keterangan or '',
+            'description': disp.catatan or '',
             'created_at': disp.created_at,
             'link': f"/disposisi/{disp.id}"
         })
