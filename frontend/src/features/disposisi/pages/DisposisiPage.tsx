@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react"
 import { type Disposisi } from "../types"
-import { mockDisposisiService } from "@/services/mockDisposisiService"
+import { disposisiService } from "@/services/disposisiService"
 import { DashboardLayout } from "@/features/dashboard/components/DashboardLayout"
 import { DisposisiTable } from "../components/DisposisiTable"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { type DateRange } from "react-day-picker"
 import { TableSkeleton } from "@/components/shared/TableSkeleton"
+import { toast } from "sonner"
 
 export default function DisposisiPage() {
     const [list, setList] = useState<Disposisi[]>([])
@@ -14,8 +15,11 @@ export default function DisposisiPage() {
     useEffect(() => {
         const fetchDisposisi = async () => {
             try {
-                const data = await mockDisposisiService.getAll()
+                const data = await disposisiService.getAll()
                 setList(data)
+            } catch (error) {
+                console.error("Failed to fetch disposisi:", error)
+                toast.error("Gagal memuat data disposisi")
             } finally {
                 setLoading(false)
             }
@@ -27,7 +31,7 @@ export default function DisposisiPage() {
 
     const filteredData = list.filter((item) => {
         if (!date?.from) return true
-        const itemDate = new Date(item.batas_waktu)
+        const itemDate = new Date(item.deadline ?? item.created_at)
         const from = date.from
         const to = date.to || date.from
 

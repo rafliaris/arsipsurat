@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { type SuratKeluar } from "../types"
-import { mockSuratKeluarService } from "@/services/mockSuratKeluarService"
+import { suratKeluarService } from "@/services/suratKeluarService"
 import { useNavigate } from "react-router-dom"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { type DateRange } from "react-day-picker"
 import { TableSkeleton } from "@/components/shared/TableSkeleton"
+import { toast } from "sonner"
 
 export default function SuratKeluarPage() {
     const [data, setData] = useState<SuratKeluar[]>([])
@@ -18,8 +19,11 @@ export default function SuratKeluarPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const result = await mockSuratKeluarService.getAll()
+                const result = await suratKeluarService.getAll()
                 setData(result)
+            } catch (error) {
+                console.error("Failed to fetch surat keluar:", error)
+                toast.error("Gagal memuat data surat keluar")
             } finally {
                 setLoading(false)
             }

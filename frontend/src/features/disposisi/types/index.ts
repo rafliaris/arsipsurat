@@ -1,12 +1,44 @@
+// Matches backend API schema from FRONTEND_API_DOCS.md
+
 export interface Disposisi {
-    id: string;
-    surat_masuk_id: string;
-    dari: string; // User ID or Name
-    tujuan: string; // User ID or Name or Unit
+    id: number;
+    surat_type: 'masuk' | 'keluar';
+    surat_masuk_id?: number;
+    surat_keluar_id?: number;
+    from_user_id: number;
+    to_user_id: number;
     instruksi: string;
-    sifat: 'Biasa' | 'Penting' | 'Segera' | 'Rahasia';
-    batas_waktu: string; // YYYY-MM-DD
-    catatan?: string;
+    keterangan?: string;
+    status: 'PENDING' | 'PROSES' | 'SELESAI';
+    deadline?: string; // YYYY-MM-DD
     created_at: string;
-    status: 'belum_dibaca' | 'dibaca' | 'selesai';
 }
+
+export interface CreateDisposisiPayload {
+    surat_type: 'masuk' | 'keluar';
+    surat_masuk_id?: number;
+    surat_keluar_id?: number;
+    to_user_id: number;
+    instruksi: string;
+    keterangan?: string;
+    deadline?: string;
+}
+
+export interface UpdateDisposisiPayload {
+    instruksi?: string;
+    keterangan?: string;
+    deadline?: string;
+}
+
+export interface CompleteDisposisiPayload {
+    keterangan: string;
+}
+
+export interface ListDisposisiParams {
+    skip?: number;
+    limit?: number;
+    status?: string;
+    surat_type?: string;
+}
+
+export type DisposisiStatus = Disposisi['status'];

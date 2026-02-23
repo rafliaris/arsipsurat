@@ -30,7 +30,7 @@ export function SuratMasukTable({
     onView,
 }: {
     data: SuratMasuk[]
-    onView: (id: string) => void
+    onView: (id: number) => void
 }) {
     const [sorting, setSorting] = useState<SortingState>([])
 
@@ -69,7 +69,7 @@ export function SuratMasukTable({
                         variant = "default"
                         className = "bg-green-500 hover:bg-green-600"
                         break
-                    case "disposisi":
+                    case "proses":
                         variant = "secondary"
                         className = "bg-blue-500 text-white hover:bg-blue-600"
                         break

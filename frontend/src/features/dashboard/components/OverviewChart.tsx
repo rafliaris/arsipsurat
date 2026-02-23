@@ -1,13 +1,25 @@
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { mockTrendData } from '@/services/mockDashboardService';
-
 import { Skeleton } from '@/components/ui/skeleton';
+import type { TrendChartData } from '@/features/dashboard/types';
 
-export function OverviewChart({ loading }: { loading?: boolean }) {
+interface OverviewChartProps {
+    loading?: boolean;
+    data?: TrendChartData[];
+}
+
+export function OverviewChart({ loading, data }: OverviewChartProps) {
     if (loading) {
         return <Skeleton className="w-full h-[350px]" />
     }
-    const data = mockTrendData;
+
+    if (!data || data.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-[350px] text-muted-foreground">
+                No data available
+            </div>
+        );
+    }
+
     return (
         <ResponsiveContainer width="100%" height={350}>
             <LineChart data={data}>
