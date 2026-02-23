@@ -5,10 +5,9 @@ export interface User {
     username: string;
     email: string;
     full_name: string;
-    role: 'admin' | 'user';
+    role: 'admin' | 'staff' | 'viewer';
     is_active: boolean;
     created_at?: string;
-    avatar?: string;
 }
 
 export interface Kategori {

@@ -1,11 +1,14 @@
 import api from '@/lib/api';
 import type { User } from '@/features/settings/types';
 
+export type UserRole = 'admin' | 'staff' | 'viewer';
+
 export interface ListUsersParams {
     skip?: number;
     limit?: number;
     is_active?: boolean;
-    role?: 'admin' | 'user';
+    role?: UserRole;
+    search?: string;
 }
 
 export interface CreateUserPayload {
@@ -13,26 +16,34 @@ export interface CreateUserPayload {
     email: string;
     full_name: string;
     password: string;
-    role: 'admin' | 'user';
+    role: UserRole;
 }
 
 export interface UpdateUserPayload {
     full_name?: string;
     email?: string;
-    role?: 'admin' | 'user';
+    role?: UserRole;
     is_active?: boolean;
-    password?: string;
 }
 
 export interface UpdateProfilePayload {
     full_name?: string;
     email?: string;
-    avatar?: string;
 }
 
 export interface ChangePasswordPayload {
     current_password: string;
     new_password: string;
+}
+
+export interface ResetPasswordPayload {
+    new_password?: string;               // if omitted, backend auto-generates
+    force_change_on_login?: boolean;
+}
+
+export interface ResetPasswordResponse {
+    message: string;
+    temporary_password?: string;
 }
 
 export const userService = {
@@ -69,10 +80,28 @@ export const userService = {
     },
 
     /**
-     * Delete a user (admin only)
+     * Toggle user active/inactive status (admin only)
      */
-    async delete(id: number): Promise<void> {
-        await api.delete(`/users/${id}`);
+    async toggleActive(id: number): Promise<User> {
+        const response = await api.put<User>(`/users/${id}/toggle-active`);
+        return response.data;
+    },
+
+    /**
+     * Reset a user's password (admin only)
+     * If new_password is omitted, backend generates a temporary one
+     */
+    async resetPassword(id: number, data?: ResetPasswordPayload): Promise<ResetPasswordResponse> {
+        const response = await api.post<ResetPasswordResponse>(`/users/${id}/reset-password`, data ?? {});
+        return response.data;
+    },
+
+    /**
+     * Delete a user — soft delete (admin only)
+     */
+    async delete(id: number): Promise<{ message: string }> {
+        const response = await api.delete<{ message: string }>(`/users/${id}`);
+        return response.data;
     },
 
     /**
@@ -89,5 +118,5 @@ export const userService = {
     async changePassword(data: ChangePasswordPayload): Promise<{ message: string }> {
         const response = await api.put<{ message: string }>('/auth/change-password', data);
         return response.data;
-    }
+    },
 };

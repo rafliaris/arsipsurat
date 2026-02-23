@@ -36,7 +36,7 @@ const formSchema = z.object({
     username: z.string().min(3, "Username minimal 3 karakter"),
     email: z.string().email("Email tidak valid"),
     full_name: z.string().min(1, "Nama lengkap wajib diisi"),
-    role: z.enum(["admin", "user"]),
+    role: z.enum(["admin", "staff", "viewer"]),
     is_active: z.boolean(),
     password: z.string().optional(),
 })
@@ -58,7 +58,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
             username: user?.username ?? "",
             email: user?.email ?? "",
             full_name: user?.full_name ?? "",
-            role: user?.role ?? "user",
+            role: user?.role ?? "staff",
             is_active: user?.is_active ?? true,
             password: "",
         },
@@ -181,8 +181,9 @@ export function UserFormDialog({ open, onOpenChange, user, onSuccess }: UserForm
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="user">User</SelectItem>
                                                 <SelectItem value="admin">Admin</SelectItem>
+                                                <SelectItem value="staff">Staff</SelectItem>
+                                                <SelectItem value="viewer">Viewer</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
