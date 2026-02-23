@@ -15,7 +15,7 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
 
     const handlePrint = useReactToPrint({
         contentRef: contentRef,
-        documentTitle: `Surat_Keluar_${data.nomor_surat.replace(/\//g, "-")}`,
+        documentTitle: `Surat_Keluar_${data.nomor_surat_keluar.replace(/\//g, "-")}`,
     })
 
     return (
@@ -37,14 +37,14 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
                 <Card className="md:col-span-1">
                     <CardHeader>
                         <CardTitle>Informasi Surat</CardTitle>
-                        <CardDescription>{data.nomor_surat}</CardDescription>
+                        <CardDescription>{data.nomor_surat_keluar}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid gap-1">
                             <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <User className="h-4 w-4" /> Tujuan
                             </span>
-                            <span className="font-medium">{data.tujuan}</span>
+                            <span className="font-medium">{data.penerima}</span>
                         </div>
                         <div className="grid gap-1">
                             <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -56,13 +56,13 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
                             <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <Tag className="h-4 w-4" /> Kategori
                             </span>
-                            <span>{data.kategori}</span>
+                            <span>{data.kategori?.nama}</span>
                         </div>
                         <div className="grid gap-1">
                             <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <Shield className="h-4 w-4" /> Sifat
                             </span>
-                            <span className="font-medium">{data.sifat}</span>
+                            <span className="font-medium">{data.priority}</span>
                         </div>
                         <div className="grid gap-1">
                             <span className="text-sm font-medium text-muted-foreground">Status</span>
@@ -92,9 +92,9 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
                             <CardTitle className="flex items-center gap-2">
                                 <FileText className="h-5 w-5" /> Draft Surat
                             </CardTitle>
-                            {data.file_url && (
+                            {data.file_path && (
                                 <Button variant="outline" size="sm" asChild>
-                                    <a href={data.file_url} download target="_blank" rel="noreferrer">
+                                    <a href={data.file_path} download target="_blank" rel="noreferrer">
                                         <Download className="mr-2 h-4 w-4" /> Unduh Lampiran
                                     </a>
                                 </Button>
@@ -118,12 +118,12 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
                                                 <tr>
                                                     <td className="w-24">Nomor</td>
                                                     <td className="w-4">:</td>
-                                                    <td>{data.nomor_surat}</td>
+                                                    <td>{data.nomor_surat_keluar}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Sifat</td>
                                                     <td>:</td>
-                                                    <td>{data.sifat}</td>
+                                                    <td>{data.priority}</td>
                                                 </tr>
                                                 <tr>
                                                     <td>Lampiran</td>
@@ -146,7 +146,7 @@ export function SuratKeluarDetail({ data }: { data: SuratKeluar }) {
                                 {/* Tujuan */}
                                 <div className="mb-8">
                                     <p>Yth.</p>
-                                    <p className="font-bold">{data.tujuan}</p>
+                                    <p className="font-bold">{data.penerima}</p>
                                     <p>di</p>
                                     <p className="pl-8">Tempat</p>
                                 </div>

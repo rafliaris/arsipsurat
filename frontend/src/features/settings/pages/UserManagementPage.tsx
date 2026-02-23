@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { type User } from "../types"
 import { toast } from "sonner"
 import { TableSkeleton } from "@/components/shared/TableSkeleton"
-import { mockUserService } from "@/services/mockUserService"
+import { userService } from "@/services/userService"
 import {
     Table,
     TableBody,
@@ -24,8 +24,11 @@ export default function UserManagementPage() {
     useEffect(() => {
         const fetchUsers = async () => {
             try {
-                const data = await mockUserService.getAll()
+                const data = await userService.getAll()
                 setUsers(data)
+            } catch (error) {
+                console.error("Failed to fetch users:", error)
+                toast.error("Gagal memuat data pengguna")
             } finally {
                 setLoading(false)
             }
@@ -35,9 +38,14 @@ export default function UserManagementPage() {
 
     const handleDelete = async (id: number) => {
         if (confirm("Apakah anda yakin ingin menghapus user ini?")) {
-            await mockUserService.delete(id)
-            setUsers(users.filter(u => u.id !== id))
-            toast.success("User berhasil dihapus")
+            try {
+                await userService.delete(id)
+                setUsers(users.filter(u => u.id !== id))
+                toast.success("User berhasil dihapus")
+            } catch (error) {
+                console.error("Failed to delete user:", error)
+                toast.error("Gagal menghapus user")
+            }
         }
     }
 

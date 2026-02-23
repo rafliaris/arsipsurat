@@ -4,6 +4,7 @@ import { LogOut, User, Menu } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { SidebarContent } from "@/components/layout/Sidebar"
+import { NotificationBell } from "@/components/layout/NotificationBell"
 
 export function Header() {
     const { user, logout } = useAuthStore()
@@ -29,7 +30,8 @@ export function Header() {
                 {/* Search input placeholder */}
                 <h1 className="text-lg font-semibold md:text-xl">Dashboard</h1>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+                <NotificationBell />
                 <ModeToggle />
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <User className="h-4 w-4" />
@@ -43,3 +45,4 @@ export function Header() {
         </header>
     )
 }
+

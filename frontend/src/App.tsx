@@ -15,6 +15,8 @@ import { SettingsLayout } from "./features/settings/pages/SettingsLayout"
 import SettingsPage from "./features/settings/pages/SettingsPage"
 import UserManagementPage from "./features/settings/pages/UserManagementPage"
 import CategoryManagementPage from "./features/settings/pages/CategoryManagementPage"
+import AuditLogPage from "./features/settings/pages/AuditLogPage"
+import AppSettingsPage from "./features/settings/pages/AppSettingsPage"
 
 // Protected Route Wrapper
 const ProtectedRoute = () => {
@@ -53,6 +55,8 @@ function App() {
             <Route index element={<SettingsPage />} />
             <Route path="users" element={<UserManagementPage />} />
             <Route path="categories" element={<CategoryManagementPage />} />
+            <Route path="app-settings" element={<AppSettingsPage />} />
+            <Route path="audit" element={<AuditLogPage />} />
           </Route>
           {/* Add other protected routes here */}
         </Route>

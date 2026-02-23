@@ -1,7 +1,7 @@
 import { DashboardLayout } from "@/features/dashboard/components/DashboardLayout"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { User, Tag, Settings } from "lucide-react"
+import { User, Tag, Settings, SlidersHorizontal, ClipboardList } from "lucide-react"
 import { useNavigate, useLocation, Outlet } from "react-router-dom"
 
 export function SettingsLayout() {
@@ -23,6 +23,16 @@ export function SettingsLayout() {
             title: "Kategori Surat",
             href: "/settings/categories",
             icon: Tag,
+        },
+        {
+            title: "Konfigurasi Aplikasi",
+            href: "/settings/app-settings",
+            icon: SlidersHorizontal,
+        },
+        {
+            title: "Audit Log",
+            href: "/settings/audit",
+            icon: ClipboardList,
         },
     ]
 

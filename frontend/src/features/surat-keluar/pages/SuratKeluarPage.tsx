@@ -1,10 +1,11 @@
 import { DashboardLayout } from "@/features/dashboard/components/DashboardLayout"
 import { SuratKeluarTable } from "../components/SuratKeluarTable"
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { Plus, FileDown, FileText } from "lucide-react"
 import { useEffect, useState } from "react"
 import { type SuratKeluar } from "../types"
 import { suratKeluarService } from "@/services/suratKeluarService"
+import { reportService } from "@/services/reportService"
 import { useNavigate } from "react-router-dom"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import { type DateRange } from "react-day-picker"
@@ -58,6 +59,26 @@ export default function SuratKeluarPage() {
                 </div>
                 <div className="flex items-center space-x-2">
                     <DatePickerWithRange date={date} setDate={setDate} />
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                            try { await reportService.exportSuratKeluarExcel() }
+                            catch { toast.error("Gagal mengekspor Excel") }
+                        }}
+                    >
+                        <FileDown className="mr-2 h-4 w-4" /> Excel
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                            try { await reportService.exportSuratKeluarPDF() }
+                            catch { toast.error("Gagal mengekspor PDF") }
+                        }}
+                    >
+                        <FileText className="mr-2 h-4 w-4" /> PDF
+                    </Button>
                     <Button onClick={() => navigate("/surat-keluar/create")}>
                         <Plus className="mr-2 h-4 w-4" /> Tambah Surat
                     </Button>
