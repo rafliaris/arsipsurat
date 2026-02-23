@@ -1,158 +1,297 @@
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { Button } from "@/components/ui/button"
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { useDropzone } from "react-dropzone"
-import { Upload, X } from "lucide-react"
 import { useState, useCallback, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { suratMasukService } from "@/services/suratMasukService"
-import { kategoriService } from "@/services/kategoriService"
-import { type Kategori } from "@/features/settings/types"
+import { useDropzone } from "react-dropzone"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 
-const formSchema = z.object({
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import {
+    Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+} from "@/components/ui/form"
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
+
+import { suratMasukService, type DetectResult } from "@/services/suratMasukService"
+import { kategoriService } from "@/services/kategoriService"
+import { type Kategori } from "@/features/settings/types"
+
+// ─── Step 2 form schema ────────────────────────────────────────
+const reviewSchema = z.object({
     nomor_surat: z.string().optional(),
-    pengirim: z.string().min(1, "Pengirim wajib diisi"),
-    perihal: z.string().min(1, "Perihal wajib diisi"),
     tanggal_surat: z.string().min(1, "Tanggal surat wajib diisi"),
     tanggal_terima: z.string().min(1, "Tanggal terima wajib diisi"),
+    pengirim: z.string().min(1, "Pengirim wajib diisi"),
+    perihal: z.string().min(1, "Perihal wajib diisi"),
+    isi_singkat: z.string().optional(),
     kategori_id: z.string().optional(),
-    priority: z.enum(["rendah", "sedang", "tinggi", "mendesak"]).default("sedang"),
+    priority: z.enum(["rendah", "sedang", "tinggi", "urgent"]),
 })
 
+type ReviewForm = z.infer<typeof reviewSchema>
+
+type Step = "upload" | "scanning" | "review"
+
+// ─── Detected field badge ──────────────────────────────────────
+function DetectedBadge({ detected }: { detected: boolean }) {
+    return detected
+        ? <Badge variant="default" className="text-xs bg-green-500 hover:bg-green-500">✓ Terdeteksi</Badge>
+        : <Badge variant="secondary" className="text-xs">? Tidak terdeteksi</Badge>
+}
+
+// ─── Main component ────────────────────────────────────────────
 export function SuratMasukForm() {
     const navigate = useNavigate()
-    const [file, setFile] = useState<File | null>(null)
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [step, setStep] = useState<Step>("upload")
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+    const [detectResult, setDetectResult] = useState<DetectResult | null>(null)
     const [kategoris, setKategoris] = useState<Kategori[]>([])
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Load kategori from API
-    useEffect(() => {
-        kategoriService.getAll({ is_active: true })
-            .then(setKategoris)
-            .catch(() => toast.error("Gagal memuat daftar kategori"))
-    }, [])
+    const today = new Date().toISOString().split("T")[0]
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm<ReviewForm>({
+        resolver: zodResolver(reviewSchema),
         defaultValues: {
             nomor_surat: "",
+            tanggal_surat: today,
+            tanggal_terima: today,
             pengirim: "",
             perihal: "",
-            tanggal_surat: new Date().toISOString().split('T')[0],
-            tanggal_terima: new Date().toISOString().split('T')[0],
+            isi_singkat: "",
             kategori_id: "",
             priority: "sedang",
         },
     })
 
-    const onDrop = useCallback((acceptedFiles: File[]) => {
-        if (acceptedFiles && acceptedFiles.length > 0) {
-            setFile(acceptedFiles[0])
-        }
+    useEffect(() => {
+        kategoriService.getAll({ is_active: true })
+            .then(setKategoris)
+            .catch(() => { })
     }, [])
+
+    // ─── Step 1: Drop zone ──────────────────────────────────
+    const onDrop = useCallback(async (acceptedFiles: File[]) => {
+        const file = acceptedFiles[0]
+        if (!file) return
+        setUploadedFile(file)
+        setStep("scanning")
+
+        try {
+            const result = await suratMasukService.detect(file)
+            setDetectResult(result)
+
+            // Pre-fill form with detected values
+            const d = result.detected
+            form.reset({
+                nomor_surat: d.nomor_surat.value ?? "",
+                tanggal_surat: d.tanggal_surat.value ?? today,
+                tanggal_terima: today,
+                pengirim: d.pengirim.value ?? "",
+                perihal: d.perihal.value ?? "",
+                isi_singkat: "",
+                kategori_id: "",
+                priority: "sedang",
+            })
+
+            setStep("review")
+        } catch {
+            toast.error("Gagal memproses dokumen. Silakan coba lagi.")
+            setStep("upload")
+            setUploadedFile(null)
+        }
+    }, [form, today])
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
-        accept: {
-            'application/pdf': ['.pdf'],
-            'image/*': ['.png', '.jpg', '.jpeg']
-        },
-        maxFiles: 1
+        accept: { "application/pdf": [".pdf"], "image/*": [".png", ".jpg", ".jpeg"] },
+        maxFiles: 1,
+        disabled: step === "scanning",
     })
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
-        if (!file) {
-            toast.error("File surat wajib dilampirkan")
-            return
-        }
+    // ─── Step 2: Confirm ────────────────────────────────────
+    async function onConfirm(values: ReviewForm) {
+        if (!detectResult) return
+        setIsSubmitting(true)
         try {
-            setIsSubmitting(true)
-            await suratMasukService.create({
-                file,
-                pengirim: values.pengirim,
-                perihal: values.perihal,
+            await suratMasukService.confirm({
+                file_token: detectResult.file_token,
+                nomor_surat: values.nomor_surat || undefined,
                 tanggal_surat: values.tanggal_surat,
                 tanggal_terima: values.tanggal_terima,
-                nomor_surat: values.nomor_surat || undefined,
+                pengirim: values.pengirim,
+                perihal: values.perihal,
+                isi_singkat: values.isi_singkat || undefined,
                 kategori_id: values.kategori_id ? Number(values.kategori_id) : undefined,
                 priority: values.priority,
+                ocr_text: detectResult.ocr_text || undefined,
+                ocr_confidence: detectResult.ocr_confidence ?? undefined,
             })
-            toast.success("Surat masuk berhasil disimpan")
+            toast.success("Surat masuk berhasil disimpan!")
             navigate("/surat-masuk")
-        } catch (error) {
-            console.error(error)
-            toast.error("Gagal menyimpan surat masuk")
+        } catch {
+            toast.error("Gagal menyimpan. Silakan coba lagi.")
         } finally {
             setIsSubmitting(false)
         }
     }
 
+    function handleRetry() {
+        setStep("upload")
+        setUploadedFile(null)
+        setDetectResult(null)
+        form.reset()
+    }
+
+    // ─── STEP 1: Upload UI ──────────────────────────────────
+    if (step === "upload") {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] p-4">
+                <div
+                    {...getRootProps()}
+                    className={`w-full max-w-2xl border-2 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all duration-200
+                        ${isDragActive
+                            ? "border-primary bg-primary/5 scale-105"
+                            : "border-muted-foreground/30 hover:border-primary hover:bg-accent/50"
+                        }`}
+                >
+                    <input {...getInputProps()} />
+                    <Upload className={`h-16 w-16 mx-auto mb-6 transition-colors ${isDragActive ? "text-primary" : "text-muted-foreground"}`} />
+                    <h3 className="text-xl font-semibold mb-2">Upload Surat</h3>
+                    <p className="text-muted-foreground mb-1">
+                        Drag &amp; drop file PDF atau gambar surat di sini
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-6">atau klik untuk memilih file</p>
+                    <Button type="button" variant="outline" size="lg">
+                        <FileText className="mr-2 h-4 w-4" />
+                        Pilih File
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-4">Format: PDF, JPG, PNG</p>
+                </div>
+
+                <div className="mt-8 text-center text-sm text-muted-foreground max-w-md">
+                    <p className="font-medium mb-1">🤖 Sistem akan otomatis membaca:</p>
+                    <p>Nomor surat · Pengirim · Perihal · Tanggal</p>
+                    <p className="mt-1">Anda hanya perlu mengkonfirmasi hasilnya.</p>
+                </div>
+            </div>
+        )
+    }
+
+    // ─── STEP: Scanning animation ───────────────────────────
+    if (step === "scanning") {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] gap-6">
+                <div className="relative">
+                    <FileText className="h-20 w-20 text-muted-foreground/40" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                    </div>
+                </div>
+                <div className="text-center">
+                    <h3 className="text-xl font-semibold mb-2">Memindai dokumen...</h3>
+                    <p className="text-muted-foreground text-sm">
+                        {uploadedFile?.name}
+                    </p>
+                    <p className="text-muted-foreground text-sm mt-1">
+                        Sistem sedang membaca dan menganalisis isi surat
+                    </p>
+                </div>
+                <div className="flex gap-2 text-xs text-muted-foreground">
+                    <span className="animate-pulse">●</span>
+                    <span className="animate-pulse" style={{ animationDelay: "0.2s" }}>●</span>
+                    <span className="animate-pulse" style={{ animationDelay: "0.4s" }}>●</span>
+                </div>
+            </div>
+        )
+    }
+
+    // ─── STEP 2: Review & Confirm UI ───────────────────────
+    const detectedCount = detectResult
+        ? Object.values(detectResult.detected).filter(f => f.detected).length
+        : 0
+    const totalFields = 4
+
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                        control={form.control}
-                        name="nomor_surat"
-                        render={({ field }) => (
+        <div className="space-y-6">
+            {/* Header with file info + detection summary */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-lg border bg-accent/30">
+                <div className="flex items-center gap-3">
+                    <FileText className="h-8 w-8 text-primary shrink-0" />
+                    <div>
+                        <p className="font-medium text-sm">{uploadedFile?.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                            {detectedCount}/{totalFields} field berhasil dideteksi otomatis
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    {detectedCount === totalFields
+                        ? <CheckCircle className="h-5 w-5 text-green-500" />
+                        : <AlertCircle className="h-5 w-5 text-yellow-500" />
+                    }
+                    <Button variant="ghost" size="sm" onClick={handleRetry}>
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Ganti File
+                    </Button>
+                </div>
+            </div>
+
+            {/* Review form */}
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onConfirm)} className="space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                        {/* Nomor Surat */}
+                        <FormField control={form.control} name="nomor_surat" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Nomor Surat <span className="text-muted-foreground">(Opsional)</span></FormLabel>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <FormLabel className="mb-0">Nomor Surat</FormLabel>
+                                    <DetectedBadge detected={detectResult?.detected.nomor_surat.detected ?? false} />
+                                </div>
                                 <FormControl>
-                                    <Input placeholder="Contoh: 001/ABC/I/2026 (kosongkan jika belum ada)" {...field} />
+                                    <Input placeholder="Kosongkan untuk generate otomatis" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="pengirim"
-                        render={({ field }) => (
+                        )} />
+
+                        {/* Pengirim */}
+                        <FormField control={form.control} name="pengirim" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Pengirim</FormLabel>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <FormLabel className="mb-0">Pengirim</FormLabel>
+                                    <DetectedBadge detected={detectResult?.detected.pengirim.detected ?? false} />
+                                </div>
                                 <FormControl>
-                                    <Input placeholder="Nama instansi/perorangan" {...field} />
+                                    <Input placeholder="Nama instansi / perorangan" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="tanggal_surat"
-                        render={({ field }) => (
+                        )} />
+
+                        {/* Tanggal Surat */}
+                        <FormField control={form.control} name="tanggal_surat" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Tanggal Surat</FormLabel>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <FormLabel className="mb-0">Tanggal Surat</FormLabel>
+                                    <DetectedBadge detected={detectResult?.detected.tanggal_surat.detected ?? false} />
+                                </div>
                                 <FormControl>
                                     <Input type="date" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="tanggal_terima"
-                        render={({ field }) => (
+                        )} />
+
+                        {/* Tanggal Terima */}
+                        <FormField control={form.control} name="tanggal_terima" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Tanggal Terima</FormLabel>
                                 <FormControl>
@@ -160,18 +299,16 @@ export function SuratMasukForm() {
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="kategori_id"
-                        render={({ field }) => (
+                        )} />
+
+                        {/* Kategori */}
+                        <FormField control={form.control} name="kategori_id" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Kategori</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Pilih kategori" />
+                                            <SelectValue placeholder="Pilih kategori (opsional)" />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
@@ -187,92 +324,69 @@ export function SuratMasukForm() {
                                 </Select>
                                 <FormMessage />
                             </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="priority"
-                        render={({ field }) => (
+                        )} />
+
+                        {/* Prioritas */}
+                        <FormField control={form.control} name="priority" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Prioritas</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Pilih prioritas" />
+                                            <SelectValue />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
                                         <SelectItem value="rendah">Rendah</SelectItem>
                                         <SelectItem value="sedang">Sedang</SelectItem>
                                         <SelectItem value="tinggi">Tinggi</SelectItem>
-                                        <SelectItem value="mendesak">Mendesak</SelectItem>
+                                        <SelectItem value="urgent">Mendesak / Urgent</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
                             </FormItem>
-                        )}
-                    />
-                </div>
+                        )} />
+                    </div>
 
-                <FormField
-                    control={form.control}
-                    name="perihal"
-                    render={({ field }) => (
+                    {/* Perihal (full width) */}
+                    <FormField control={form.control} name="perihal" render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Perihal</FormLabel>
+                            <div className="flex items-center gap-2 mb-1">
+                                <FormLabel className="mb-0">Perihal</FormLabel>
+                                <DetectedBadge detected={detectResult?.detected.perihal.detected ?? false} />
+                            </div>
                             <FormControl>
-                                <Textarea placeholder="Ringkasan isi surat" {...field} />
+                                <Textarea placeholder="Perihal / pokok surat" rows={2} {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
-                    )}
-                />
+                    )} />
 
-                <div className="space-y-2">
-                    <label className="text-sm font-medium leading-none">
-                        File Surat (PDF/Image) <span className="text-red-500">*</span>
-                    </label>
-                    <div
-                        {...getRootProps()}
-                        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/10' : 'border-gray-300 hover:border-primary'
-                            }`}
-                    >
-                        <input {...getInputProps()} />
-                        {file ? (
-                            <div className="flex items-center justify-center gap-2 text-primary">
-                                <span className="font-medium">{file.name}</span>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        setFile(null)
-                                    }}
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                <Upload className="h-8 w-8" />
-                                <p>Drag &amp; drop file di sini, atau klik untuk memilih</p>
-                                <p className="text-xs">Max 1 file (PDF, JPG, PNG)</p>
-                            </div>
-                        )}
+                    {/* Isi Singkat */}
+                    <FormField control={form.control} name="isi_singkat" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Ringkasan Isi <span className="text-muted-foreground text-xs">(opsional)</span></FormLabel>
+                            <FormControl>
+                                <Textarea placeholder="Ringkasan singkat isi surat" rows={3} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+
+                    {/* Actions */}
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button type="button" variant="outline" onClick={() => navigate("/surat-masuk")}>
+                            Batal
+                        </Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting
+                                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menyimpan...</>
+                                : "Simpan Surat"
+                            }
+                        </Button>
                     </div>
-                </div>
-
-                <div className="flex justify-end gap-4">
-                    <Button type="button" variant="outline" onClick={() => navigate("/surat-masuk")}>
-                        Batal
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? "Menyimpan..." : "Simpan Surat"}
-                    </Button>
-                </div>
-            </form>
-        </Form>
+                </form>
+            </Form>
+        </div>
     )
 }

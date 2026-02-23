@@ -11,9 +11,9 @@ export default function SuratMasukCreatePage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Formulir Surat Masuk</CardTitle>
+                    <CardTitle>Tambah Surat Masuk</CardTitle>
                     <CardDescription>
-                        Masukkan data surat masuk baru. Pastikan nomor surat unik.
+                        Upload file surat — sistem akan otomatis membaca dan mengisi data.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

@@ -1,7 +1,7 @@
 """
 Surat Masuk API Endpoints
 """
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Response
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -16,9 +16,9 @@ from app.schemas.surat_masuk import (
 )
 from app.services.file_service import file_service
 from app.services.ocr_service import ocr_service
+from app.services.extraction_service import extraction_service
 from app.api.deps import get_current_user
 from datetime import date, datetime
-import json
 
 router = APIRouter(prefix="/surat-masuk")
 
@@ -60,34 +60,123 @@ def list_surat_masuk(
     return surat_list
 
 
+# ─────────────────────────────────────────────────────────────
+# DETECT: Upload file, run OCR, extract fields — return for review
+# ─────────────────────────────────────────────────────────────
+
+@router.post("/detect")
+async def detect_surat_fields(
+    file: UploadFile = File(...),
+    current_user = Depends(get_current_user),
+):
+    """
+    Step 1 of the auto-detect flow.
+    Upload a document (PDF/image), run OCR, and return detected fields
+    for the user to review before saving.
+
+    Returns:
+        file_token: temporary file path to use in the confirm step
+        detected fields: nomor_surat, perihal, tanggal_surat, pengirim
+        ocr_text: full extracted text
+    """
+    # Save the file into temp storage
+    file_path, mime_type, file_size = await file_service.save_upload_file(
+        file,
+        file_type="surat_masuk",
+        date=datetime.now().date(),
+    )
+
+    # Run OCR — non-fatal
+    ocr_result = ocr_service.process_file(file_path, mime_type)
+    ocr_text = ocr_result.get("text", "")
+
+    # Extract structured fields from OCR text
+    extracted = extraction_service.extract_all(ocr_text)
+
+    return {
+        "file_token": file_path,           # Used in Step 2
+        "file_size": file_size,
+        "original_filename": file.filename,
+        "mime_type": mime_type,
+        "ocr_text": ocr_text,
+        "ocr_confidence": ocr_result.get("confidence"),
+        "keywords": ocr_result.get("keywords", []),
+        "detected": extracted,             # Per-field detected values
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# CREATE (CONFIRM): Save reviewed fields + already-uploaded file
+# ─────────────────────────────────────────────────────────────
+
 @router.post("", response_model=SuratMasukResponse, status_code=status.HTTP_201_CREATED)
 async def create_surat_masuk(
-    nomor_surat: str = Form(...),
+    # File token from detect step (already uploaded file path)
+    file_token: Optional[str] = Form(None),
+    # Reviewed / confirmed fields
+    nomor_surat: Optional[str] = Form(None),
     tanggal_surat: date = Form(...),
     tanggal_terima: date = Form(...),
     pengirim: str = Form(...),
     perihal: str = Form(...),
-    isi_singkat: str = Form(None),
-    kategori_id: int = Form(None),
+    isi_singkat: Optional[str] = Form(None),
+    kategori_id: Optional[int] = Form(None),
     priority: str = Form("sedang"),
-    file: UploadFile = File(...),
+    # Fallback: allow re-upload if no token provided
+    file: Optional[UploadFile] = File(None),
+    # OCR data forwarded from detect step
+    ocr_text: Optional[str] = Form(None),
+    ocr_confidence: Optional[float] = Form(None),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
     """
-    Create new surat masuk with file upload and OCR processing
+    Step 2 — Confirm and save the surat masuk.
+    Accepts file_token from the /detect step (no re-upload needed).
+    Falls back to a fresh file upload if file_token is not provided.
     """
-    # Save uploaded file
-    file_path, mime_type, file_size = await file_service.save_upload_file(
-        file, 
-        file_type="surat_masuk",
-        date=tanggal_surat
-    )
-    
-    # Process OCR
-    ocr_result = ocr_service.process_file(file_path, mime_type)
-    
-    # Create surat masuk record
+    # Resolve file — prefer the already-uploaded file_token
+    if file_token:
+        if not file_service.file_exists(file_token):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid file_token — file not found. Please re-upload.",
+            )
+        final_file_path = file_token
+        # Determine mime type from extension
+        from pathlib import Path
+        ext = Path(file_token).suffix.lower()
+        mime_map = {".pdf": "application/pdf", ".jpg": "image/jpeg",
+                    ".jpeg": "image/jpeg", ".png": "image/png"}
+        final_mime_type = mime_map.get(ext, "application/octet-stream")
+        import os
+        final_file_size = os.path.getsize(file_token) if os.path.exists(file_token) else 0
+        original_filename = Path(file_token).name
+    elif file:
+        final_file_path, final_mime_type, final_file_size = await file_service.save_upload_file(
+            file, file_type="surat_masuk", date=tanggal_surat
+        )
+        original_filename = file.filename
+        # Run OCR on fresh upload if not forwarded
+        if not ocr_text:
+            ocr_result = ocr_service.process_file(final_file_path, final_mime_type)
+            ocr_text = ocr_result.get("text", "") or None
+            ocr_confidence = ocr_result.get("confidence") or None
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either file_token or a file upload is required.",
+        )
+
+    # Auto-generate nomor surat if user left it blank
+    if not nomor_surat:
+        nomor_surat = f"SM/{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+    # Extract keywords from OCR text if not already available
+    keywords = None
+    if ocr_text:
+        keywords = ocr_service.extract_keywords(ocr_text) or None
+
     db_surat = SuratMasuk(
         nomor_surat=nomor_surat,
         tanggal_surat=tanggal_surat,
@@ -97,20 +186,19 @@ async def create_surat_masuk(
         isi_singkat=isi_singkat,
         kategori_id=kategori_id,
         priority=priority,
-        file_path=file_path,
-        file_type=mime_type,
-        file_size=file_size,
-        original_filename=file.filename,
-        ocr_text=ocr_result['text'],
-        ocr_confidence=ocr_result['confidence'],
-        keywords=json.dumps(ocr_result['keywords']) if ocr_result['keywords'] else None,
+        file_path=final_file_path,
+        file_type=final_mime_type,
+        file_size=final_file_size,
+        original_filename=original_filename,
+        ocr_text=ocr_text or None,
+        ocr_confidence=ocr_confidence if ocr_confidence else None,
+        keywords=keywords,
         created_by=current_user.id,
     )
-    
+
     db.add(db_surat)
     db.commit()
     db.refresh(db_surat)
-    
     return db_surat
 
 

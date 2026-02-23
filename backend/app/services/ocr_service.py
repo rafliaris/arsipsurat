@@ -8,7 +8,6 @@ from typing import Tuple, List, Dict, Optional
 from PIL import Image
 import pytesseract
 import PyPDF2
-from fastapi import HTTPException, status
 from app.core.config import settings
 
 
@@ -55,10 +54,7 @@ class OCRService:
             return (text.strip(), round(avg_confidence, 2))
             
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"OCR failed for image: {str(e)}"
-            )
+            raise RuntimeError(f"OCR failed for image: {str(e)}")
     
     def extract_text_from_pdf(self, pdf_path: str) -> Tuple[str, float]:
         """
@@ -96,10 +92,7 @@ class OCRService:
             return ("", 0.0)
             
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"PDF processing failed: {str(e)}"
-            )
+            raise RuntimeError(f"PDF processing failed: {str(e)}")
     
     def extract_keywords(self, text: str) -> List[str]:
         """
@@ -143,48 +136,41 @@ class OCRService:
     
     def process_file(self, file_path: str, file_type: str) -> Dict[str, any]:
         """
-        Process file and extract text based on file type
-        
-        Args:
-            file_path: Path to file
-            file_type: MIME type of file
-        
-        Returns:
-            Dictionary with 'text', 'confidence', and 'keywords'
+        Process file and extract text based on file type.
+        Returns empty OCR result if processing fails (non-fatal).
         """
+        empty_result = {'text': '', 'confidence': 0.0, 'keywords': []}
+
         try:
             text = ""
             confidence = 0.0
-            
-            # Determine processing method based on file type
+
             if 'pdf' in file_type.lower():
-                text, confidence = self.extract_text_from_pdf(file_path)
+                try:
+                    text, confidence = self.extract_text_from_pdf(file_path)
+                except Exception:
+                    return empty_result  # OCR failed gracefully
+
             elif any(img_type in file_type.lower() for img_type in ['image', 'jpeg', 'jpg', 'png']):
-                text, confidence = self.extract_text_from_image(file_path)
+                try:
+                    text, confidence = self.extract_text_from_image(file_path)
+                except Exception:
+                    return empty_result  # OCR failed gracefully
+
             else:
-                # Unsupported file type
-                return {
-                    'text': '',
-                    'confidence': 0.0,
-                    'keywords': []
-                }
-            
-            # Extract keywords
+                return empty_result  # Unsupported file type
+
             keywords = self.extract_keywords(text) if text else []
-            
+
             return {
                 'text': text,
                 'confidence': confidence,
                 'keywords': keywords
             }
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"File processing failed: {str(e)}"
-            )
+
+        except Exception:
+            # Never let OCR failure crash the upload
+            return empty_result
 
 
 # Create singleton instance

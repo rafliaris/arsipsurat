@@ -100,8 +100,10 @@ class FileService:
             file_size = file_path.stat().st_size
             mime_type = upload_file.content_type or "application/octet-stream"
             
-            # Return relative path from project root
-            relative_path = str(file_path.relative_to(Path.cwd()))
+            # Return relative path from project root (resolve both to absolute first)
+            relative_path = str(file_path.resolve().relative_to(Path.cwd().resolve()))
+            # Normalize to forward slashes for consistency
+            relative_path = relative_path.replace("\\", "/")
             
             return (relative_path, mime_type, file_size)
             

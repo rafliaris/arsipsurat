@@ -8,7 +8,7 @@ export default function SuratKeluarCreatePage() {
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Buat Surat Keluar</h2>
                     <p className="text-muted-foreground">
-                        Isi form di bawah untuk membuat arsip surat keluar baru.
+                        Upload file surat — sistem akan otomatis membaca dan mengisi data. Nomor surat di-generate otomatis.
                     </p>
                 </div>
                 <div className="border rounded-lg p-6 bg-card text-card-foreground shadow-sm">
