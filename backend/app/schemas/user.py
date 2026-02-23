@@ -44,3 +44,21 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class ChangePasswordRequest(BaseModel):
+    """Schema for changing password (authenticated users)"""
+    current_password: str = Field(..., min_length=1, description="Current password")
+    new_password: str = Field(..., min_length=6, description="New password (min 6 characters)")
+
+
+class AdminResetPasswordRequest(BaseModel):
+    """Schema for admin resetting user password"""
+    new_password: Optional[str] = Field(None, min_length=6, description="New password, auto-generated if not provided")
+    force_change_on_login: bool = Field(default=False, description="Require password change on next login")
+
+
+class PasswordChangeResponse(BaseModel):
+    """Schema for password change response"""
+    message: str
+    temporary_password: Optional[str] = None  # Only for admin reset
