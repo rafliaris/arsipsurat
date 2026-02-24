@@ -1,4 +1,4 @@
-import { useRef } from "react"
+import { useRef, useState, useEffect } from "react"
 import { type SuratKeluar } from "../types"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,13 +9,33 @@ import { id } from "date-fns/locale"
 import { useNavigate } from "react-router-dom"
 import { useReactToPrint } from "react-to-print"
 import { suratKeluarService } from "@/services/suratKeluarService"
+import { settingsService } from "@/services/settingsService"
 import { toast } from "sonner"
-import { useState } from "react"
 
 export function SuratKeluarDetail({ data, onDeleted }: { data: SuratKeluar; onDeleted?: () => void }) {
     const navigate = useNavigate()
     const contentRef = useRef<HTMLDivElement>(null)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [orgSettings, setOrgSettings] = useState<Record<string, string>>({})
+
+    useEffect(() => {
+        settingsService.getPublic()
+            .then(settings => {
+                const map: Record<string, string> = {}
+                settings.forEach(s => { map[s.setting_key] = s.setting_value })
+                setOrgSettings(map)
+            })
+            .catch(() => { }) // silently fail — fallback text used
+    }, [])
+
+    const org = {
+        name: orgSettings.org_name ?? "—",
+        unit: orgSettings.org_unit ?? "—",
+        address: orgSettings.org_address ?? "—",
+        jabatanTtd: orgSettings.org_jabatan_ttd ?? "Kepala Dinas",
+        namaTtd: orgSettings.org_nama_ttd ?? "—",
+        nipTtd: orgSettings.org_nip_ttd ?? "—",
+    }
 
     const handlePrint = useReactToPrint({
         contentRef: contentRef,
@@ -144,11 +164,11 @@ export function SuratKeluarDetail({ data, onDeleted }: { data: SuratKeluar; onDe
                         <CardContent className="bg-muted/10 p-8 min-h-[500px]">
                             {/* Printable Content Wrapper */}
                             <div ref={contentRef} className="bg-white p-12 shadow-sm border mx-auto max-w-[210mm] min-h-[297mm] text-black">
-                                {/* Kop Surat Simulation */}
+                                {/* Kop Surat – loaded from org settings */}
                                 <div className="text-center border-b-4 border-double border-black pb-4 mb-8">
-                                    <h1 className="text-xl font-bold uppercase">Pemerintah Kabupaten Contoh</h1>
-                                    <h2 className="text-lg font-bold uppercase">Dinas Kearsipan dan Perpustakaan</h2>
-                                    <p className="text-sm">Jl. Contoh No. 123, Kota Contoh, Telp. (021) 1234567</p>
+                                    <h1 className="text-xl font-bold uppercase">{org.name}</h1>
+                                    <h2 className="text-lg font-bold uppercase">{org.unit}</h2>
+                                    <p className="text-sm">{org.address}</p>
                                 </div>
 
                                 {/* Header Surat */}
@@ -180,7 +200,7 @@ export function SuratKeluarDetail({ data, onDeleted }: { data: SuratKeluar; onDe
                                         </table>
                                     </div>
                                     <div className="w-1/2 text-right">
-                                        <p>Contoh Kota, {format(new Date(data.tanggal_surat), "dd MMMM yyyy", { locale: id })}</p>
+                                        <p>{org.address.split(',')[0] ?? org.address}, {format(new Date(data.tanggal_surat), "dd MMMM yyyy", { locale: id })}</p>
                                     </div>
                                 </div>
 
@@ -192,24 +212,21 @@ export function SuratKeluarDetail({ data, onDeleted }: { data: SuratKeluar; onDe
                                     <p className="pl-8">Tempat</p>
                                 </div>
 
-                                {/* Isi Surat Placeholder */}
+                                {/* Isi Surat – based on perihal, full text not stored */}
                                 <div className="mb-8 text-justify leading-relaxed">
                                     <p className="mb-4">Dengan hormat,</p>
-                                    <p className="mb-4">
-                                        Sehubungan dengan kegiatan operasional dinas, bersama ini kami sampaikan bahwa...
-                                        [Ini adalah simulasi isi surat. Dalam implementasi nyata, isi surat akan diambil dari editor text atau inputan user.]
-                                    </p>
+                                    <p className="mb-4">{data.perihal}</p>
                                     <p className="mb-4">
                                         Demikian surat ini kami sampaikan. Atas perhatian dan kerjasamanya kami ucapkan terima kasih.
                                     </p>
                                 </div>
 
-                                {/* Tanda Tangan */}
+                                {/* Tanda Tangan – loaded from org settings */}
                                 <div className="flex justify-end mt-16">
                                     <div className="text-center w-64">
-                                        <p className="mb-24">Kepala Dinas,</p>
-                                        <p className="font-bold underline">Nama Kepala Dinas</p>
-                                        <p>NIP. 19800101 200001 1 001</p>
+                                        <p className="mb-24">{org.jabatanTtd},</p>
+                                        <p className="font-bold underline">{org.namaTtd}</p>
+                                        <p>{org.nipTtd}</p>
                                     </div>
                                 </div>
                             </div>

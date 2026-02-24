@@ -5,12 +5,13 @@ import { RecentActivity } from "@/features/dashboard/components/RecentActivity"
 import { DisposisiStatsCards } from "@/features/dashboard/components/DisposisiStatsCards"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useEffect, useState } from "react"
+import { useLocation } from "react-router-dom"
 import { dashboardService } from "@/services/dashboardService"
 import type { DashboardStats, RecentActivity as RecentActivityType, TrendChartData } from "@/features/dashboard/types"
 import { toast } from "sonner"
 
-
 export default function DashboardPage() {
+    const location = useLocation()
     const [loading, setLoading] = useState(true)
     const [stats, setStats] = useState<DashboardStats>()
     const [recentActivity, setRecentActivity] = useState<RecentActivityType[]>([])
@@ -21,23 +22,20 @@ export default function DashboardPage() {
             setLoading(true);
             try {
                 // Fetch all dashboard data in parallel
-                const [statsData, activityData, monthData] = await Promise.all([
+                const [statsData, activityData, trendData] = await Promise.all([
                     dashboardService.getStats(),
                     dashboardService.getRecentActivity(5),
-                    dashboardService.getChartsByMonth(6)
+                    dashboardService.getTrend(6),
                 ]);
 
                 setStats(statsData);
                 setRecentActivity(activityData);
 
-                // Transform month data for the chart
-                // The API returns { label, value, color } but we need to format it as { name, Masuk, Keluar }
-                // Since the API doesn't separate masuk/keluar in one call, we'll use the total for now
-                // or make two API calls if needed
-                const transformedData = monthData.map(item => ({
+                // trendData already has { label, masuk, keluar } from backend
+                const transformedData: TrendChartData[] = trendData.map(item => ({
                     name: item.label,
-                    Masuk: item.value,
-                    Keluar: Math.floor(item.value * 0.6) // Placeholder - ideally fetch separately
+                    Masuk: item.masuk,
+                    Keluar: item.keluar,
                 }));
                 setTrendData(transformedData);
 
@@ -50,7 +48,7 @@ export default function DashboardPage() {
         };
 
         fetchDashboardData();
-    }, []);
+    }, [location]);
 
     return (
         <DashboardLayout>

@@ -19,6 +19,7 @@ from app.schemas.surat_keluar import (
 from app.services.file_service import file_service
 from app.services.ocr_service import ocr_service
 from app.services.extraction_service import extraction_service
+from app.services.ai_extraction_service import ai_extraction_service
 from app.api.deps import get_current_user
 from datetime import date, datetime
 
@@ -73,6 +74,7 @@ def list_surat_keluar(
 @router.post("/detect")
 async def detect_surat_keluar_fields(
     file: UploadFile = File(...),
+    method: str = Form("regex"),
     current_user = Depends(get_current_user),
 ):
     """
@@ -89,14 +91,64 @@ async def detect_surat_keluar_fields(
     ocr_result = ocr_service.process_file(file_path, mime_type)
     ocr_text = ocr_result.get("text", "")
 
-    # Extract fields — for outgoing letters, "pengirim" detection helps find penerima
-    extracted = extraction_service.extract_all(ocr_text)
-
-    penerima_value = None
-    if ocr_text:
-        match = re.search(r"(?:Kepada\s+Yth\.?|Kepada|Yth\.?)\s*[:\.]?\s*(.+?)(?:\n|$)", ocr_text, re.IGNORECASE)
-        if match:
-            penerima_value = match.group(1).strip()
+    # ── Route by detection method ──────────────────────────────
+    if method == "manual" or method == "ocr_only":
+        empty = lambda: {"value": None, "detected": False}  # noqa: E731
+        detected = {
+            "penerima":      empty(),
+            "perihal":       empty(),
+            "tanggal_surat": empty(),
+            "isi_singkat":   empty(),
+        }
+    elif method == "ai" and ai_extraction_service.available:
+        ai_result = ai_extraction_service.extract_from_file(file_path, ocr_text)
+        detected = {
+            "penerima":      ai_result.get("penerima",      {"value": None, "detected": False}),
+            "perihal":       ai_result.get("perihal",       {"value": None, "detected": False}),
+            "tanggal_surat": ai_result.get("tanggal_surat", {"value": None, "detected": False}),
+            "isi_singkat":   ai_result.get("isi_singkat",   {"value": None, "detected": False}),
+        }
+    elif method == "hybrid":
+        if ai_extraction_service.available:
+            ai_result    = ai_extraction_service.extract_from_file(file_path, ocr_text)
+            regex_result = extraction_service.extract_all(ocr_text)
+            def _merge(key: str, regex_key: str | None = None):
+                rkey = regex_key or key
+                ai_f = ai_result.get(key,  {"value": None, "detected": False})
+                rg_f = regex_result.get(rkey, {"value": None, "detected": False})
+                return ai_f if ai_f["detected"] else rg_f
+            detected = {
+                "penerima":      _merge("penerima"),
+                "perihal":       _merge("perihal"),
+                "tanggal_surat": _merge("tanggal_surat"),
+                "isi_singkat":   _merge("isi_singkat"),
+            }
+        else:
+            extracted = extraction_service.extract_all(ocr_text)
+            penerima = extracted.get("penerima", {"value": None, "detected": False})
+            if not penerima["detected"] and ocr_text:
+                m = re.search(r"(?:Kepada\s+Yth\.?|Kepada|Yth\.)\s*[:\.]?\s*(.+?)(?:\n|$)", ocr_text, re.IGNORECASE)
+                if m:
+                    penerima = {"value": m.group(1).strip(), "detected": True}
+            detected = {
+                "penerima":      penerima,
+                "perihal":       extracted["perihal"],
+                "tanggal_surat": extracted["tanggal_surat"],
+                "isi_singkat":   extracted.get("isi_singkat", {"value": None, "detected": False}),
+            }
+    else:
+        extracted = extraction_service.extract_all(ocr_text)
+        penerima = extracted.get("penerima", {"value": None, "detected": False})
+        if not penerima["detected"] and ocr_text:
+            m = re.search(r"(?:Kepada\s+Yth\.?|Kepada|Yth\.)\s*[:\.]?\s*(.+?)(?:\n|$)", ocr_text, re.IGNORECASE)
+            if m:
+                penerima = {"value": m.group(1).strip(), "detected": True}
+        detected = {
+            "penerima":      penerima,
+            "perihal":       extracted["perihal"],
+            "tanggal_surat": extracted["tanggal_surat"],
+            "isi_singkat":   extracted.get("isi_singkat", {"value": None, "detected": False}),
+        }
 
     return {
         "file_token": file_path,
@@ -106,14 +158,7 @@ async def detect_surat_keluar_fields(
         "ocr_text": ocr_text,
         "ocr_confidence": ocr_result.get("confidence"),
         "keywords": ocr_result.get("keywords", []),
-        "detected": {
-            "penerima": {
-                "value": penerima_value,
-                "detected": penerima_value is not None,
-            },
-            "perihal": extracted["perihal"],
-            "tanggal_surat": extracted["tanggal_surat"],
-        },
+        "detected": detected,
     }
 
 

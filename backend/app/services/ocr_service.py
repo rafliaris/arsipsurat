@@ -1,177 +1,189 @@
 """
-OCR Service
-Handles OCR text extraction from documents using Tesseract
+OCR Service — Improved Pipeline
+Uses pdfplumber for digital PDFs, PyMuPDF for scanned PDFs,
+and opencv for image preprocessing before Tesseract.
 """
 import re
+import io
 from pathlib import Path
 from typing import Tuple, List, Dict, Optional
+
 from PIL import Image
 import pytesseract
-import PyPDF2
+
 from app.core.config import settings
 
 
 class OCRService:
-    """Service for OCR operations"""
-    
+
+    TESSERACT_CONFIG = "--psm 6 --oem 3"
+
     def __init__(self):
-        """Initialize OCR service with Tesseract configuration"""
-        # Set Tesseract command path from settings
-        if settings.TESSERACT_CMD != "tesseract":
+        if settings.TESSERACT_CMD:
             pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
-    
-    def extract_text_from_image(self, image_path: str) -> Tuple[str, float]:
+
+    # ─────────────────────────────────────────────────────────────
+    # Public API
+    # ─────────────────────────────────────────────────────────────
+
+    def process_file(self, file_path: str, file_type: str) -> Dict[str, object]:
         """
-        Extract text from image using Tesseract OCR
-        
-        Args:
-            image_path: Path to image file
-        
-        Returns:
-            Tuple of (extracted_text, confidence_score)
+        Extract text from a document using the best available method.
+        Returns {'text': str, 'confidence': float, 'keywords': list}.
+        Never raises — returns empty result on failure.
         """
+        empty = {"text": "", "confidence": 0.0, "keywords": []}
         try:
-            # Open image
-            image = Image.open(image_path)
-            
-            # Perform OCR with confidence data
-            ocr_data = pytesseract.image_to_data(
-                image,
-                lang=settings.OCR_LANGUAGE,
-                output_type=pytesseract.Output.DICT
-            )
-            
-            # Extract text
-            text = pytesseract.image_to_string(image, lang=settings.OCR_LANGUAGE)
-            
-            # Calculate average confidence
-            confidences = [
-                int(conf) for conf in ocr_data['conf'] 
-                if conf != '-1'  # Filter out invalid confidence scores
-            ]
-            avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-            
-            return (text.strip(), round(avg_confidence, 2))
-            
-        except Exception as e:
-            raise RuntimeError(f"OCR failed for image: {str(e)}")
-    
-    def extract_text_from_pdf(self, pdf_path: str) -> Tuple[str, float]:
-        """
-        Extract text from PDF
-        For PDFs with text: extract directly
-        For scanned PDFs: convert to images and OCR
-        
-        Args:
-            pdf_path: Path to PDF file
-        
-        Returns:
-            Tuple of (extracted_text, confidence_score)
-        """
-        try:
-            text_parts = []
-            
-            with open(pdf_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
-                
-                # Try to extract text directly from PDF
-                for page in pdf_reader.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text_parts.append(page_text)
-                
-                # If we got text, return it
-                if text_parts:
-                    combined_text = '\n'.join(text_parts)
-                    # For extracted PDF text, we assume high confidence
-                    return (combined_text.strip(), 95.0)
-            
-            # If no text extracted, it's likely a scanned PDF
-            # TODO: Implement PDF to image conversion and OCR
-            # For now, return empty with low confidence
-            return ("", 0.0)
-            
-        except Exception as e:
-            raise RuntimeError(f"PDF processing failed: {str(e)}")
-    
-    def extract_keywords(self, text: str) -> List[str]:
-        """
-        Extract keywords from text
-        Simple implementation: find important words (length > 3, alphanumeric)
-        
-        Args:
-            text: Input text
-        
-        Returns:
-            List of extracted keywords (unique, lowercase)
-        """
-        # Clean text
-        text = text.lower()
-        
-        # Remove special characters except spaces
-        text = re.sub(r'[^a-z0-9\s]', ' ', text)
-        
-        # Split into words
-        words = text.split()
-        
-        # Filter important words (length > 3)
-        keywords = [
-            word for word in words 
-            if len(word) > 3
-        ]
-        
-        # Get unique keywords, sorted by frequency
-        keyword_freq = {}
-        for kw in keywords:
-            keyword_freq[kw] = keyword_freq.get(kw, 0) + 1
-        
-        # Sort by frequency and take top 20
-        sorted_keywords = sorted(
-            keyword_freq.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
-        
-        return [kw for kw, freq in sorted_keywords[:20]]
-    
-    def process_file(self, file_path: str, file_type: str) -> Dict[str, any]:
-        """
-        Process file and extract text based on file type.
-        Returns empty OCR result if processing fails (non-fatal).
-        """
-        empty_result = {'text': '', 'confidence': 0.0, 'keywords': []}
-
-        try:
-            text = ""
-            confidence = 0.0
-
-            if 'pdf' in file_type.lower():
-                try:
-                    text, confidence = self.extract_text_from_pdf(file_path)
-                except Exception:
-                    return empty_result  # OCR failed gracefully
-
-            elif any(img_type in file_type.lower() for img_type in ['image', 'jpeg', 'jpg', 'png']):
-                try:
-                    text, confidence = self.extract_text_from_image(file_path)
-                except Exception:
-                    return empty_result  # OCR failed gracefully
-
+            ext = Path(file_path).suffix.lower().lstrip(".")
+            if ext == "pdf" or "pdf" in file_type.lower():
+                text, confidence = self._process_pdf(file_path)
+            elif ext in ("jpg", "jpeg", "png") or any(
+                t in file_type.lower() for t in ("image", "jpeg", "jpg", "png")
+            ):
+                text, confidence = self._process_image(file_path)
             else:
-                return empty_result  # Unsupported file type
+                return empty
 
             keywords = self.extract_keywords(text) if text else []
-
-            return {
-                'text': text,
-                'confidence': confidence,
-                'keywords': keywords
-            }
-
+            return {"text": text, "confidence": confidence, "keywords": keywords}
         except Exception:
-            # Never let OCR failure crash the upload
-            return empty_result
+            return empty
+
+    def extract_keywords(self, text: str) -> List[str]:
+        """Return top-20 keywords (words longer than 3 chars, by frequency)."""
+        cleaned = re.sub(r"[^a-z0-9\s]", " ", text.lower())
+        freq: Dict[str, int] = {}
+        for word in cleaned.split():
+            if len(word) > 3:
+                freq[word] = freq.get(word, 0) + 1
+        return [w for w, _ in sorted(freq.items(), key=lambda x: -x[1])[:20]]
+
+    # ─────────────────────────────────────────────────────────────
+    # PDF handling
+    # ─────────────────────────────────────────────────────────────
+
+    def _process_pdf(self, path: str) -> Tuple[str, float]:
+        """Try pdfplumber first (digital PDF); fall back to PyMuPDF OCR (scanned)."""
+        text = self._pdf_digital(path)
+        if text and len(text.strip()) > 50:
+            # Good digital text — high confidence
+            return text.strip(), 90.0
+
+        # Scanned PDF → render via PyMuPDF → Tesseract
+        text, confidence = self._pdf_scanned(path)
+        return text, confidence
+
+    def _pdf_digital(self, path: str) -> str:
+        """Extract text from a digital (text-based) PDF via pdfplumber."""
+        try:
+            import pdfplumber
+            text = ""
+            with pdfplumber.open(path) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+            return text
+        except Exception:
+            return ""
+
+    def _pdf_scanned(self, path: str) -> Tuple[str, float]:
+        """Render scanned PDF pages at 300 DPI via PyMuPDF, then OCR with Tesseract."""
+        try:
+            import fitz  # PyMuPDF
+            all_text = []
+            all_conf: List[float] = []
+            doc = fitz.open(path)
+            for page in doc:
+                # Render at 300 DPI
+                pix = page.get_pixmap(dpi=300)
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                preprocessed = self._preprocess_image(img)
+                lang = getattr(settings, "OCR_LANGUAGE", "ind")
+                page_text = pytesseract.image_to_string(
+                    preprocessed, lang=lang, config=self.TESSERACT_CONFIG
+                )
+                all_text.append(page_text)
+                # Try to get confidence
+                try:
+                    data = pytesseract.image_to_data(
+                        preprocessed, lang=lang, output_type=pytesseract.Output.DICT
+                    )
+                    confs = [int(c) for c in data["conf"] if str(c).lstrip("-").isdigit() and int(c) >= 0]
+                    if confs:
+                        all_conf.append(sum(confs) / len(confs))
+                except Exception:
+                    pass
+            text = "\n".join(all_text)
+            avg_conf = sum(all_conf) / len(all_conf) if all_conf else 0.0
+            return text, round(avg_conf, 2)
+        except Exception:
+            return "", 0.0
+
+    # ─────────────────────────────────────────────────────────────
+    # Image handling
+    # ─────────────────────────────────────────────────────────────
+
+    def _process_image(self, path: str) -> Tuple[str, float]:
+        """Preprocess image then run Tesseract."""
+        img = Image.open(path).convert("RGB")
+        preprocessed = self._preprocess_image(img)
+        lang = getattr(settings, "OCR_LANGUAGE", "ind")
+        text = pytesseract.image_to_string(
+            preprocessed, lang=lang, config=self.TESSERACT_CONFIG
+        )
+        try:
+            data = pytesseract.image_to_data(
+                preprocessed, lang=lang, output_type=pytesseract.Output.DICT
+            )
+            confs = [int(c) for c in data["conf"] if str(c).lstrip("-").isdigit() and int(c) >= 0]
+            confidence = round(sum(confs) / len(confs), 2) if confs else 0.0
+        except Exception:
+            confidence = 0.0
+        return text, confidence
+
+    # ─────────────────────────────────────────────────────────────
+    # Image preprocessing (opencv pipeline)
+    # ─────────────────────────────────────────────────────────────
+
+    def _preprocess_image(self, img: Image.Image) -> Image.Image:
+        """
+        Apply opencv preprocessing to improve Tesseract accuracy:
+          1. Convert to grayscale
+          2. Upscale if image is too small
+          3. Adaptive threshold (binarisation)
+        Falls back to original PIL image if opencv is unavailable.
+        """
+        try:
+            import cv2
+            import numpy as np
+
+            img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+
+            # Upscale small images for better OCR
+            h, w = gray.shape
+            if h < 1000:
+                scale = 2
+                gray = cv2.resize(gray, (w * scale, h * scale), interpolation=cv2.INTER_CUBIC)
+
+            # Denoise slightly
+            gray = cv2.fastNlMeansDenoising(gray, h=10)
+
+            # Adaptive threshold — handles uneven lighting much better than Otsu
+            processed = cv2.adaptiveThreshold(
+                gray, 255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY, 11, 2
+            )
+
+            return Image.fromarray(processed)
+        except ImportError:
+            # opencv not available — use PIL grayscale as fallback
+            return img.convert("L")
+        except Exception:
+            return img
 
 
-# Create singleton instance
+# Singleton
 ocr_service = OCRService()

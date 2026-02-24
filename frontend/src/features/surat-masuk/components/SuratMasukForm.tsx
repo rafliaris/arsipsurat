@@ -21,8 +21,17 @@ import {
 import { suratMasukService, type DetectResult } from "@/services/suratMasukService"
 import { kategoriService } from "@/services/kategoriService"
 import { type Kategori } from "@/features/settings/types"
+import {
+    DetectionMethodSelector,
+    type DetectionMethod,
+} from "@/components/DetectionMethodSelector"
 
-// ─── Step 2 form schema ────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────
+// Set to true when OPENROUTER_API_KEY is configured in the backend.
+// For now we read from a Vite env var; the backend will also guard this.
+const AI_AVAILABLE = !!import.meta.env.VITE_AI_AVAILABLE
+
+// ─── Review form schema ────────────────────────────────────────
 const reviewSchema = z.object({
     nomor_surat: z.string().optional(),
     tanggal_surat: z.string().min(1, "Tanggal surat wajib diisi"),
@@ -35,7 +44,6 @@ const reviewSchema = z.object({
 })
 
 type ReviewForm = z.infer<typeof reviewSchema>
-
 type Step = "upload" | "scanning" | "review"
 
 // ─── Detected field badge ──────────────────────────────────────
@@ -45,10 +53,22 @@ function DetectedBadge({ detected }: { detected: boolean }) {
         : <Badge variant="secondary" className="text-xs">? Tidak terdeteksi</Badge>
 }
 
+// ─── Method label badge ────────────────────────────────────────
+const METHOD_LABELS: Record<DetectionMethod, string> = {
+    ai: "🤖 AI",
+    regex: "🔍 Regex",
+    hybrid: "⚡ AI + Regex",
+    ocr_only: "📄 OCR Only",
+    manual: "✍️ Manual",
+}
+
 // ─── Main component ────────────────────────────────────────────
 export function SuratMasukForm() {
     const navigate = useNavigate()
     const [step, setStep] = useState<Step>("upload")
+    const [method, setMethod] = useState<DetectionMethod>(
+        AI_AVAILABLE ? "hybrid" : "regex"
+    )
     const [uploadedFile, setUploadedFile] = useState<File | null>(null)
     const [detectResult, setDetectResult] = useState<DetectResult | null>(null)
     const [kategoris, setKategoris] = useState<Kategori[]>([])
@@ -76,26 +96,52 @@ export function SuratMasukForm() {
             .catch(() => { })
     }, [])
 
-    // ─── Step 1: Drop zone ──────────────────────────────────
+    // ─── Manual mode: skip straight to empty review ─────────
+    function handleManualMode() {
+        form.reset({
+            nomor_surat: "",
+            tanggal_surat: today,
+            tanggal_terima: today,
+            pengirim: "",
+            perihal: "",
+            isi_singkat: "",
+            kategori_id: "",
+            priority: "sedang",
+        })
+        setDetectResult(null)
+        setUploadedFile(null)
+        setStep("review")
+    }
+
+    // ─── Step 1: Drop zone ────────────────────────────────────
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         const file = acceptedFiles[0]
         if (!file) return
+
+        // Manual mode — don't upload, just open form
+        if (method === "manual") {
+            handleManualMode()
+            return
+        }
+
         setUploadedFile(file)
         setStep("scanning")
 
         try {
-            const result = await suratMasukService.detect(file)
+            // OCR Only: run detect but clear all fields except raw text
+            const result = await suratMasukService.detect(file, method)
             setDetectResult(result)
 
-            // Pre-fill form with detected values
             const d = result.detected
+            const isOcrOnly = method === "ocr_only"
+
             form.reset({
-                nomor_surat: d.nomor_surat.value ?? "",
-                tanggal_surat: d.tanggal_surat.value ?? today,
+                nomor_surat: isOcrOnly ? "" : (d.nomor_surat.value ?? ""),
+                tanggal_surat: isOcrOnly ? today : (d.tanggal_surat.value ?? today),
                 tanggal_terima: today,
-                pengirim: d.pengirim.value ?? "",
-                perihal: d.perihal.value ?? "",
-                isi_singkat: "",
+                pengirim: isOcrOnly ? "" : (d.pengirim.value ?? ""),
+                perihal: isOcrOnly ? "" : (d.perihal.value ?? ""),
+                isi_singkat: isOcrOnly ? "" : (d.isi_singkat?.value ?? ""),
                 kategori_id: "",
                 priority: "sedang",
             })
@@ -106,7 +152,7 @@ export function SuratMasukForm() {
             setStep("upload")
             setUploadedFile(null)
         }
-    }, [form, today])
+    }, [form, today, method]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -115,13 +161,17 @@ export function SuratMasukForm() {
         disabled: step === "scanning",
     })
 
-    // ─── Step 2: Confirm ────────────────────────────────────
+    // ─── Step 2: Confirm ──────────────────────────────────────
     async function onConfirm(values: ReviewForm) {
-        if (!detectResult) return
+        if (!detectResult && method !== "manual") return
         setIsSubmitting(true)
         try {
+            if (method === "manual" && uploadedFile === null) {
+                toast.error("Mode manual memerlukan file. Silakan upload terlebih dahulu.")
+                return
+            }
             await suratMasukService.confirm({
-                file_token: detectResult.file_token,
+                file_token: detectResult?.file_token ?? "",
                 nomor_surat: values.nomor_surat || undefined,
                 tanggal_surat: values.tanggal_surat,
                 tanggal_terima: values.tanggal_terima,
@@ -130,8 +180,8 @@ export function SuratMasukForm() {
                 isi_singkat: values.isi_singkat || undefined,
                 kategori_id: values.kategori_id ? Number(values.kategori_id) : undefined,
                 priority: values.priority,
-                ocr_text: detectResult.ocr_text || undefined,
-                ocr_confidence: detectResult.ocr_confidence ?? undefined,
+                ocr_text: detectResult?.ocr_text || undefined,
+                ocr_confidence: detectResult?.ocr_confidence ?? undefined,
             })
             toast.success("Surat masuk berhasil disimpan!")
             navigate("/surat-masuk")
@@ -149,43 +199,80 @@ export function SuratMasukForm() {
         form.reset()
     }
 
-    // ─── STEP 1: Upload UI ──────────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // STEP 1: Upload UI
+    // ─────────────────────────────────────────────────────────
     if (step === "upload") {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[400px] p-4">
-                <div
-                    {...getRootProps()}
-                    className={`w-full max-w-2xl border-2 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all duration-200
-                        ${isDragActive
-                            ? "border-primary bg-primary/5 scale-105"
-                            : "border-muted-foreground/30 hover:border-primary hover:bg-accent/50"
-                        }`}
-                >
-                    <input {...getInputProps()} />
-                    <Upload className={`h-16 w-16 mx-auto mb-6 transition-colors ${isDragActive ? "text-primary" : "text-muted-foreground"}`} />
-                    <h3 className="text-xl font-semibold mb-2">Upload Surat</h3>
-                    <p className="text-muted-foreground mb-1">
-                        Drag &amp; drop file PDF atau gambar surat di sini
-                    </p>
-                    <p className="text-sm text-muted-foreground mb-6">atau klik untuk memilih file</p>
-                    <Button type="button" variant="outline" size="lg">
-                        <FileText className="mr-2 h-4 w-4" />
-                        Pilih File
-                    </Button>
-                    <p className="text-xs text-muted-foreground mt-4">Format: PDF, JPG, PNG</p>
-                </div>
+            <div className="flex flex-col items-center justify-center min-h-[400px] p-4 gap-2">
 
-                <div className="mt-8 text-center text-sm text-muted-foreground max-w-md">
-                    <p className="font-medium mb-1">🤖 Sistem akan otomatis membaca:</p>
-                    <p>Nomor surat · Pengirim · Perihal · Tanggal</p>
-                    <p className="mt-1">Anda hanya perlu mengkonfirmasi hasilnya.</p>
-                </div>
+                {/* ── Detection method selector ── */}
+                <DetectionMethodSelector
+                    value={method}
+                    onChange={setMethod}
+                    aiAvailable={AI_AVAILABLE}
+                />
+
+                {/* ── Drop zone (hidden for manual mode) ── */}
+                {method === "manual" ? (
+                    <div className="flex flex-col items-center gap-4 mt-4">
+                        <div className="flex items-center justify-center w-24 h-24 rounded-full bg-muted">
+                            <span className="text-4xl">✍️</span>
+                        </div>
+                        <div className="text-center">
+                            <h3 className="text-lg font-semibold mb-1">Mode Manual</h3>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Isi semua field secara manual tanpa upload dokumen
+                            </p>
+                            <Button onClick={handleManualMode} size="lg">
+                                Buka Form Kosong
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div
+                        {...getRootProps()}
+                        className={`w-full max-w-2xl border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-200
+                            ${isDragActive
+                                ? "border-primary bg-primary/5 scale-105"
+                                : "border-muted-foreground/30 hover:border-primary hover:bg-accent/50"
+                            }`}
+                    >
+                        <input {...getInputProps()} />
+                        <Upload className={`h-14 w-14 mx-auto mb-5 transition-colors ${isDragActive ? "text-primary" : "text-muted-foreground"}`} />
+                        <h3 className="text-xl font-semibold mb-2">Upload Surat</h3>
+                        <p className="text-muted-foreground mb-1">
+                            Drag &amp; drop file PDF atau gambar di sini
+                        </p>
+                        <p className="text-sm text-muted-foreground mb-5">atau klik untuk memilih file</p>
+                        <Button type="button" variant="outline" size="lg">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Pilih File
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-4">Format: PDF, JPG, PNG</p>
+
+                        {/* Method info hint */}
+                        <p className="text-xs text-muted-foreground mt-2 opacity-70">
+                            Metode: <span className="font-medium">{METHOD_LABELS[method]}</span>
+                            {method === "ocr_only" && " — teks dideteksi, field diisi manual"}
+                        </p>
+                    </div>
+                )}
             </div>
         )
     }
 
-    // ─── STEP: Scanning animation ───────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // STEP: Scanning animation
+    // ─────────────────────────────────────────────────────────
     if (step === "scanning") {
+        const scanLabels: Record<string, string> = {
+            ai: "Meminta AI menganalisis surat...",
+            hybrid: "Meminta AI & regex menganalisis surat...",
+            regex: "Menganalisis pola teks surat...",
+            ocr_only: "Mengekstrak teks dari dokumen...",
+            manual: "",
+        }
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] gap-6">
                 <div className="relative">
@@ -195,13 +282,12 @@ export function SuratMasukForm() {
                     </div>
                 </div>
                 <div className="text-center">
-                    <h3 className="text-xl font-semibold mb-2">Memindai dokumen...</h3>
-                    <p className="text-muted-foreground text-sm">
-                        {uploadedFile?.name}
+                    <h3 className="text-xl font-semibold mb-1">Memindai dokumen...</h3>
+                    <p className="text-sm text-muted-foreground">{uploadedFile?.name}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        {scanLabels[method] ?? "Sistem sedang membaca dan menganalisis isi surat"}
                     </p>
-                    <p className="text-muted-foreground text-sm mt-1">
-                        Sistem sedang membaca dan menganalisis isi surat
-                    </p>
+                    <p className="text-xs text-primary mt-1 font-medium">{METHOD_LABELS[method]}</p>
                 </div>
                 <div className="flex gap-2 text-xs text-muted-foreground">
                     <span className="animate-pulse">●</span>
@@ -212,33 +298,46 @@ export function SuratMasukForm() {
         )
     }
 
-    // ─── STEP 2: Review & Confirm UI ───────────────────────
+    // ─────────────────────────────────────────────────────────
+    // STEP 2: Review & Confirm UI
+    // ─────────────────────────────────────────────────────────
     const detectedCount = detectResult
         ? Object.values(detectResult.detected).filter(f => f.detected).length
         : 0
-    const totalFields = 4
+    const totalFields = detectResult ? Object.keys(detectResult.detected).length : 0
+    const isManual = method === "manual"
+    const isOcrOnly = method === "ocr_only"
 
     return (
         <div className="space-y-6">
-            {/* Header with file info + detection summary */}
+            {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-lg border bg-accent/30">
                 <div className="flex items-center gap-3">
                     <FileText className="h-8 w-8 text-primary shrink-0" />
                     <div>
-                        <p className="font-medium text-sm">{uploadedFile?.name}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm">{uploadedFile?.name ?? "Mode Manual"}</p>
+                            <Badge variant="outline" className="text-xs">{METHOD_LABELS[method]}</Badge>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                            {detectedCount}/{totalFields} field berhasil dideteksi otomatis
+                            {isManual
+                                ? "Isi semua field secara manual"
+                                : isOcrOnly
+                                    ? "Teks berhasil diekstrak — isi field secara manual"
+                                    : `${detectedCount}/${totalFields} field berhasil dideteksi otomatis`
+                            }
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {detectedCount === totalFields
-                        ? <CheckCircle className="h-5 w-5 text-green-500" />
-                        : <AlertCircle className="h-5 w-5 text-yellow-500" />
-                    }
+                    {!isManual && !isOcrOnly && (
+                        detectedCount === totalFields
+                            ? <CheckCircle className="h-5 w-5 text-green-500" />
+                            : <AlertCircle className="h-5 w-5 text-yellow-500" />
+                    )}
                     <Button variant="ghost" size="sm" onClick={handleRetry}>
                         <RotateCcw className="h-4 w-4 mr-1" />
-                        Ganti File
+                        Ganti
                     </Button>
                 </div>
             </div>
@@ -253,7 +352,9 @@ export function SuratMasukForm() {
                             <FormItem>
                                 <div className="flex items-center gap-2 mb-1">
                                     <FormLabel className="mb-0">Nomor Surat</FormLabel>
-                                    <DetectedBadge detected={detectResult?.detected.nomor_surat.detected ?? false} />
+                                    {!isManual && !isOcrOnly && (
+                                        <DetectedBadge detected={detectResult?.detected.nomor_surat.detected ?? false} />
+                                    )}
                                 </div>
                                 <FormControl>
                                     <Input placeholder="Kosongkan untuk generate otomatis" {...field} />
@@ -267,7 +368,9 @@ export function SuratMasukForm() {
                             <FormItem>
                                 <div className="flex items-center gap-2 mb-1">
                                     <FormLabel className="mb-0">Pengirim</FormLabel>
-                                    <DetectedBadge detected={detectResult?.detected.pengirim.detected ?? false} />
+                                    {!isManual && !isOcrOnly && (
+                                        <DetectedBadge detected={detectResult?.detected.pengirim.detected ?? false} />
+                                    )}
                                 </div>
                                 <FormControl>
                                     <Input placeholder="Nama instansi / perorangan" {...field} />
@@ -281,7 +384,9 @@ export function SuratMasukForm() {
                             <FormItem>
                                 <div className="flex items-center gap-2 mb-1">
                                     <FormLabel className="mb-0">Tanggal Surat</FormLabel>
-                                    <DetectedBadge detected={detectResult?.detected.tanggal_surat.detected ?? false} />
+                                    {!isManual && !isOcrOnly && (
+                                        <DetectedBadge detected={detectResult?.detected.tanggal_surat.detected ?? false} />
+                                    )}
                                 </div>
                                 <FormControl>
                                     <Input type="date" {...field} />
@@ -353,7 +458,9 @@ export function SuratMasukForm() {
                         <FormItem>
                             <div className="flex items-center gap-2 mb-1">
                                 <FormLabel className="mb-0">Perihal</FormLabel>
-                                <DetectedBadge detected={detectResult?.detected.perihal.detected ?? false} />
+                                {!isManual && !isOcrOnly && (
+                                    <DetectedBadge detected={detectResult?.detected.perihal.detected ?? false} />
+                                )}
                             </div>
                             <FormControl>
                                 <Textarea placeholder="Perihal / pokok surat" rows={2} {...field} />
@@ -365,7 +472,14 @@ export function SuratMasukForm() {
                     {/* Isi Singkat */}
                     <FormField control={form.control} name="isi_singkat" render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Ringkasan Isi <span className="text-muted-foreground text-xs">(opsional)</span></FormLabel>
+                            <div className="flex items-center gap-2 mb-1">
+                                <FormLabel className="mb-0">
+                                    Ringkasan Isi <span className="text-muted-foreground text-xs">(opsional)</span>
+                                </FormLabel>
+                                {!isManual && !isOcrOnly && detectResult?.detected.isi_singkat && (
+                                    <DetectedBadge detected={detectResult.detected.isi_singkat.detected} />
+                                )}
+                            </div>
                             <FormControl>
                                 <Textarea placeholder="Ringkasan singkat isi surat" rows={3} {...field} />
                             </FormControl>

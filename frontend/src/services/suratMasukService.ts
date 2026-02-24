@@ -24,6 +24,8 @@ export interface DetectResult {
         perihal: DetectedField;
         tanggal_surat: DetectedField;
         pengirim: DetectedField;
+        penerima?: DetectedField;   // may be present from improved extractor
+        isi_singkat?: DetectedField;
     };
 }
 
@@ -61,9 +63,10 @@ export const suratMasukService = {
     /**
      * Step 1: Upload file, run OCR, get detected fields + file_token
      */
-    async detect(file: File): Promise<DetectResult> {
+    async detect(file: File, method: string = 'regex'): Promise<DetectResult> {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('method', method);
         const response = await api.post<DetectResult>('/surat-masuk/detect', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });

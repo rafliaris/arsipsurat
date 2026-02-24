@@ -1,6 +1,12 @@
 import api from '@/lib/api';
 import type { DashboardStats, RecentActivity, ChartDataPoint } from '@/features/dashboard/types';
 
+export interface TrendDataPoint {
+    label: string;
+    masuk: number;
+    keluar: number;
+}
+
 export const dashboardService = {
     /**
      * Get dashboard statistics
@@ -41,5 +47,17 @@ export const dashboardService = {
             params: { months }
         });
         return response.data;
-    }
+    },
+
+    /**
+     * Get combined masuk + keluar trend data by month
+     * @param months - Number of months to fetch (default: 6)
+     */
+    async getTrend(months: number = 6): Promise<TrendDataPoint[]> {
+        const response = await api.get<TrendDataPoint[]>('/dashboard/charts/trend', {
+            params: { months }
+        });
+        return response.data;
+    },
 };
+

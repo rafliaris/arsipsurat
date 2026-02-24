@@ -2,23 +2,23 @@
 Surat Masuk API Endpoints
 """
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Response
+import os
+from pathlib import Path
+from datetime import datetime, date
+
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+
 from app.database import get_db
 from app.models.surat_masuk import SuratMasuk
-from app.schemas.surat_masuk import (
-    SuratMasukCreate,
-    SuratMasukUpdate,
-    SuratMasukResponse,
-    SuratMasukList,
-    OCRResult,
-)
+from app.schemas.surat_masuk import SuratMasukCreate, SuratMasukResponse, SuratMasukUpdate, SuratMasukList, OCRResult
 from app.services.file_service import file_service
 from app.services.ocr_service import ocr_service
 from app.services.extraction_service import extraction_service
+from app.services.ai_extraction_service import ai_extraction_service
 from app.api.deps import get_current_user
-from datetime import date, datetime
+
 
 router = APIRouter(prefix="/surat-masuk")
 
@@ -67,6 +67,7 @@ def list_surat_masuk(
 @router.post("/detect")
 async def detect_surat_fields(
     file: UploadFile = File(...),
+    method: str = Form("regex"),
     current_user = Depends(get_current_user),
 ):
     """
@@ -90,18 +91,45 @@ async def detect_surat_fields(
     ocr_result = ocr_service.process_file(file_path, mime_type)
     ocr_text = ocr_result.get("text", "")
 
-    # Extract structured fields from OCR text
-    extracted = extraction_service.extract_all(ocr_text)
+    # ── Route by detection method ──────────────────────────────
+    if method == "manual" or method == "ocr_only":
+        # No field extraction — return empty detected fields
+        empty = lambda: {"value": None, "detected": False}  # noqa: E731
+        detected = {
+            "nomor_surat":   empty(),
+            "perihal":       empty(),
+            "tanggal_surat": empty(),
+            "pengirim":      empty(),
+            "penerima":      empty(),
+            "isi_singkat":   empty(),
+        }
+    elif method == "ai" and ai_extraction_service.available:
+        # Send actual file images (like the OpenRouter playground)
+        detected = ai_extraction_service.extract_from_file(file_path, ocr_text)
+    elif method == "hybrid":
+        if ai_extraction_service.available:
+            # AI from file + fill gaps with regex
+            ai_result    = ai_extraction_service.extract_from_file(file_path, ocr_text)
+            regex_result = extraction_service.extract_all(ocr_text)
+            detected = {}
+            for key in ["nomor_surat", "perihal", "tanggal_surat", "pengirim", "penerima", "isi_singkat"]:
+                ai_field = ai_result.get(key, {"value": None, "detected": False})
+                detected[key] = ai_field if ai_field["detected"] else regex_result.get(key, {"value": None, "detected": False})
+        else:
+            detected = extraction_service.extract_all(ocr_text)
+    else:
+        # Default: regex
+        detected = extraction_service.extract_all(ocr_text)
 
     return {
-        "file_token": file_path,           # Used in Step 2
+        "file_token": file_path,
         "file_size": file_size,
         "original_filename": file.filename,
         "mime_type": mime_type,
         "ocr_text": ocr_text,
         "ocr_confidence": ocr_result.get("confidence"),
         "keywords": ocr_result.get("keywords", []),
-        "detected": extracted,             # Per-field detected values
+        "detected": detected,
     }
 
 

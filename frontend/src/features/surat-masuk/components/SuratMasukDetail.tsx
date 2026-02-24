@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DisposisiList } from "@/features/disposisi/components/DisposisiList"
 import { DisposisiForm } from "@/features/disposisi/components/DisposisiForm"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useReactToPrint } from "react-to-print"
 import { DisposisiPrint } from "@/features/disposisi/components/DisposisiPrint"
 import { suratMasukService } from "@/services/suratMasukService"
@@ -20,6 +20,26 @@ export function SuratMasukDetail({ data, onDeleted }: { data: SuratMasuk; onDele
     const [refreshTrigger, setRefreshTrigger] = useState(0)
     const [isDeleting, setIsDeleting] = useState(false)
     const [isOcr, setIsOcr] = useState(false)
+    const [fileUrl, setFileUrl] = useState<string | null>(null)
+    const [fileLoading, setFileLoading] = useState(false)
+    const [fileError, setFileError] = useState<string | null>(null)
+
+    // Load the file as a blob URL so the iframe can display it (auth header required)
+    useEffect(() => {
+        if (!data.file_path) return
+        let revoked = false
+        setFileLoading(true)
+        setFileError(null)
+        suratMasukService.downloadFile(data.id)
+            .then(url => { if (!revoked) setFileUrl(url) })
+            .catch(() => { if (!revoked) setFileError("Gagal memuat dokumen") })
+            .finally(() => { if (!revoked) setFileLoading(false) })
+        return () => {
+            revoked = true
+            // Revoke blob URL when component unmounts or data changes
+            setFileUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null })
+        }
+    }, [data.id, data.file_path])
 
     const handleDisposisiSuccess = () => {
         setRefreshTrigger(prev => prev + 1)
@@ -180,11 +200,23 @@ export function SuratMasukDetail({ data, onDeleted }: { data: SuratMasuk; onDele
                                 </CardHeader>
                                 <CardContent className="flex-1 bg-muted/20 p-0 overflow-hidden flex items-center justify-center">
                                     {data.file_path ? (
-                                        <iframe
-                                            src={data.file_path}
-                                            className="w-full h-full"
-                                            title="Dokumen Surat"
-                                        />
+                                        fileLoading ? (
+                                            <div className="text-center text-muted-foreground">
+                                                <FileText className="h-12 w-12 mx-auto mb-2 opacity-50 animate-pulse" />
+                                                <p className="text-sm">Memuat dokumen...</p>
+                                            </div>
+                                        ) : fileError ? (
+                                            <div className="text-center text-muted-foreground">
+                                                <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                                                <p className="text-sm text-destructive">{fileError}</p>
+                                            </div>
+                                        ) : fileUrl ? (
+                                            <iframe
+                                                src={fileUrl}
+                                                className="w-full h-full"
+                                                title="Dokumen Surat"
+                                            />
+                                        ) : null
                                     ) : (
                                         <div className="text-center text-muted-foreground">
                                             <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />

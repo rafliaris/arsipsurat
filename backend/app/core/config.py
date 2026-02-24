@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     TESSERACT_CMD: str = "tesseract"  # Path to tesseract executable
     OCR_LANGUAGE: str = "ind+eng"  # Indonesian + English
     CLASSIFICATION_CONFIDENCE_THRESHOLD: float = 70.0
+
+    # OpenRouter AI extraction (optional)
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "z-ai/glm-4.5-air:free"
+    OPENROUTER_SITE_URL: str = "http://localhost:8000"
     
     # Redis settings (for caching and Celery)
     REDIS_URL: str = "redis://localhost:6379/0"

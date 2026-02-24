@@ -1,4 +1,4 @@
-import { Pie, PieChart, Label } from "recharts"
+import { Pie, PieChart, Label, Cell } from "recharts"
 import {
     Card,
     CardContent,
@@ -13,37 +13,44 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from "@/components/ui/chart"
-import { mockDisposisiStats } from "@/services/mockDashboardService"
-import { useMemo } from "react"
+import { useEffect, useState, useMemo } from "react"
+import { dashboardService } from "@/services/dashboardService"
+import type { ChartDataPoint } from "@/features/dashboard/types"
 
-export function DisposisiStatsChart({ loading }: { loading?: boolean }) {
-    const totalDisposisi = useMemo(() => {
-        return mockDisposisiStats.reduce((acc, curr) => acc + curr.value, 0)
+const CHART_COLORS = [
+    "hsl(var(--chart-1))",
+    "hsl(var(--chart-2))",
+    "hsl(var(--chart-3))",
+    "hsl(var(--chart-4))",
+    "hsl(var(--chart-5))",
+]
+
+export function DisposisiStatsChart({ loading: parentLoading }: { loading?: boolean }) {
+    const [data, setData] = useState<ChartDataPoint[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        dashboardService.getChartsByKategori("masuk")
+            .then(setData)
+            .catch(() => setData([]))
+            .finally(() => setLoading(false))
     }, [])
 
-    const chartConfig = {
-        value: {
-            label: "Disposisi",
-        },
-        segera: {
-            label: "Segera",
-            color: "hsl(var(--chart-1))",
-        },
-        penting: {
-            label: "Penting",
-            color: "hsl(var(--chart-2))",
-        },
-        rutin: {
-            label: "Rutin",
-            color: "hsl(var(--chart-3))",
-        },
-        rahasia: {
-            label: "Rahasia",
-            color: "hsl(var(--chart-4))",
-        },
-    } satisfies ChartConfig
+    const total = useMemo(() => data.reduce((acc, d) => acc + d.value, 0), [data])
 
-    if (loading) {
+    // Build ChartConfig dynamically from real data
+    const chartConfig: ChartConfig = useMemo(() => {
+        const cfg: ChartConfig = { value: { label: "Surat" } }
+        data.forEach((d, i) => {
+            cfg[d.label.toLowerCase().replace(/\s+/g, "_")] = {
+                label: d.label,
+                color: d.color ?? CHART_COLORS[i % CHART_COLORS.length],
+            }
+        })
+        return cfg
+    }, [data])
+
+    if (parentLoading || loading) {
         return (
             <div className="flex items-center justify-center h-[250px] w-full">
                 <div className="h-full w-full bg-muted/20 animate-pulse rounded-lg" />
@@ -51,11 +58,25 @@ export function DisposisiStatsChart({ loading }: { loading?: boolean }) {
         )
     }
 
+    if (data.length === 0) {
+        return (
+            <Card className="flex flex-col">
+                <CardHeader className="items-center pb-0">
+                    <CardTitle>Sebaran Kategori Surat</CardTitle>
+                    <CardDescription>Berdasarkan Kategori Surat Masuk</CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-center justify-center min-h-[200px] text-muted-foreground text-sm">
+                    Belum ada data
+                </CardContent>
+            </Card>
+        )
+    }
+
     return (
         <Card className="flex flex-col">
             <CardHeader className="items-center pb-0">
-                <CardTitle>Statistik Disposisi</CardTitle>
-                <CardDescription>Berdasarkan Sifat Surat</CardDescription>
+                <CardTitle>Sebaran Kategori Surat</CardTitle>
+                <CardDescription>Berdasarkan Kategori Surat Masuk</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 pb-0">
                 <ChartContainer
@@ -68,12 +89,18 @@ export function DisposisiStatsChart({ loading }: { loading?: boolean }) {
                             content={<ChartTooltipContent hideLabel />}
                         />
                         <Pie
-                            data={mockDisposisiStats}
+                            data={data}
                             dataKey="value"
-                            nameKey="name"
+                            nameKey="label"
                             innerRadius={60}
                             strokeWidth={5}
                         >
+                            {data.map((entry, index) => (
+                                <Cell
+                                    key={entry.label}
+                                    fill={entry.color ?? CHART_COLORS[index % CHART_COLORS.length]}
+                                />
+                            ))}
                             <Label
                                 content={({ viewBox }) => {
                                     if (viewBox && "cx" in viewBox && "cy" in viewBox) {
@@ -89,7 +116,7 @@ export function DisposisiStatsChart({ loading }: { loading?: boolean }) {
                                                     y={viewBox.cy}
                                                     className="fill-foreground text-3xl font-bold"
                                                 >
-                                                    {totalDisposisi.toLocaleString()}
+                                                    {total.toLocaleString()}
                                                 </tspan>
                                                 <tspan
                                                     x={viewBox.cx}
@@ -108,11 +135,8 @@ export function DisposisiStatsChart({ loading }: { loading?: boolean }) {
                 </ChartContainer>
             </CardContent>
             <CardFooter className="flex-col gap-2 text-sm">
-                <div className="flex items-center gap-2 font-medium leading-none">
-                    Trending naik 5.2% bulan ini <span className="text-emerald-500">↗</span>
-                </div>
                 <div className="leading-none text-muted-foreground">
-                    Menampilkan total disposisi berdasarkan sifat.
+                    Menampilkan distribusi surat masuk per kategori.
                 </div>
             </CardFooter>
         </Card>

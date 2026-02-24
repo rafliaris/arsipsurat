@@ -23,6 +23,7 @@ export interface DetectKeluarResult {
         penerima: DetectedFieldKeluar;
         perihal: DetectedFieldKeluar;
         tanggal_surat: DetectedFieldKeluar;
+        isi_singkat?: DetectedFieldKeluar;
     };
 }
 
@@ -53,9 +54,10 @@ export const suratKeluarService = {
     },
 
     /** Step 1: Upload file, run OCR, get detected fields + file_token */
-    async detect(file: File): Promise<DetectKeluarResult> {
+    async detect(file: File, method: string = 'regex'): Promise<DetectKeluarResult> {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('method', method);
         const response = await api.post<DetectKeluarResult>('/surat-keluar/detect', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });

@@ -168,13 +168,14 @@ def get_surat_by_month(
     current_user = Depends(get_current_user),
 ):
     """
-    Get surat count by month for line chart
-    Shows both masuk and keluar
+    Get surat masuk count by month for chart.
+    Use /charts/trend for combined masuk+keluar data.
     """
     now = datetime.utcnow()
     start_date = now - timedelta(days=months * 30)
-    
-    # Surat masuk by month
+    month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+                   'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
     masuk_query = db.query(
         extract('year', SuratMasuk.created_at).label('year'),
         extract('month', SuratMasuk.created_at).label('month'),
@@ -183,9 +184,46 @@ def get_surat_by_month(
         SuratMasuk.deleted_at == None,
         SuratMasuk.created_at >= start_date
     ).group_by('year', 'month').all()
-    
-    # Surat keluar by month
-    keluar_query = db.query(
+
+    result = []
+    for year, month, count in masuk_query:
+        key = f"{month_names[int(month)-1]} {int(year)}"
+        result.append(ChartDataPoint(label=key, value=count, color="#3B82F6"))
+    return result
+
+
+class TrendDataPoint(BaseModel):
+    """Combined masuk + keluar trend point"""
+    label: str
+    masuk: int = 0
+    keluar: int = 0
+
+
+@router.get("/charts/trend", response_model=List[TrendDataPoint])
+def get_surat_trend(
+    months: int = 6,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Get combined surat masuk AND keluar counts per month.
+    Used by the OverviewChart on the dashboard.
+    """
+    now = datetime.utcnow()
+    start_date = now - timedelta(days=months * 30)
+    month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+                   'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
+    masuk_rows = db.query(
+        extract('year', SuratMasuk.created_at).label('year'),
+        extract('month', SuratMasuk.created_at).label('month'),
+        func.count(SuratMasuk.id).label('count')
+    ).filter(
+        SuratMasuk.deleted_at == None,
+        SuratMasuk.created_at >= start_date
+    ).group_by('year', 'month').all()
+
+    keluar_rows = db.query(
         extract('year', SuratKeluar.created_at).label('year'),
         extract('month', SuratKeluar.created_at).label('month'),
         func.count(SuratKeluar.id).label('count')
@@ -193,26 +231,27 @@ def get_surat_by_month(
         SuratKeluar.deleted_at == None,
         SuratKeluar.created_at >= start_date
     ).group_by('year', 'month').all()
-    
-    # Format results
-    month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 
-                   'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-    
-    result = []
-    
-    # Combine results
-    month_data = {}
-    for year, month, count in masuk_query:
-        key = f"{month_names[int(month)-1]} {int(year)}"
-        month_data[key] = count
-    
-    for key, count in month_data.items():
-        result.append(ChartDataPoint(
-            label=key,
-            value=count,
-            color="#3B82F6"  # Blue for chart
-        ))
-    
+
+    # Merge into dict keyed by month label
+    trend: Dict[str, dict] = {}
+    for year, month, count in masuk_rows:
+        label = f"{month_names[int(month)-1]} {int(year)}"
+        trend.setdefault(label, {"masuk": 0, "keluar": 0})["masuk"] = count
+    for year, month, count in keluar_rows:
+        label = f"{month_names[int(month)-1]} {int(year)}"
+        trend.setdefault(label, {"masuk": 0, "keluar": 0})["keluar"] = count
+
+    # Sort chronologically using Indonesian month_names index (avoids strptime locale issue)
+    def _sort_key(item: tuple) -> tuple:
+        parts = item[0].split()
+        if len(parts) == 2 and parts[0] in month_names:
+            return (int(parts[1]), month_names.index(parts[0]))
+        return (0, 0)
+
+    result = [
+        TrendDataPoint(label=lbl, masuk=v["masuk"], keluar=v["keluar"])
+        for lbl, v in sorted(trend.items(), key=_sort_key)
+    ]
     return result
 
 
