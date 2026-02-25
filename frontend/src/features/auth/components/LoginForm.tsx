@@ -4,6 +4,7 @@ import * as z from "zod"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowRight, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 import { useAuthStore } from "@/store/authStore"
 import { Button } from "@/components/ui/button"
@@ -43,9 +44,12 @@ export function LoginForm() {
         try {
             await login(data.username, data.password)
             navigate("/dashboard")
-        } catch (error) {
-            // Handle error (show toast potentially)
-            console.error("Login failed", error)
+        } catch (error: any) {
+            const detail = error?.response?.data?.detail
+            const message = typeof detail === "string"
+                ? detail
+                : "Username atau password salah. Silakan coba lagi."
+            toast.error(message)
         } finally {
             setIsLoading(false)
         }
