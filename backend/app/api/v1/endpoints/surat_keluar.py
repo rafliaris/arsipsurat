@@ -92,6 +92,8 @@ async def detect_surat_keluar_fields(
     ocr_text = ocr_result.get("text", "")
 
     # ── Route by detection method ──────────────────────────────
+    ai_error = None
+
     if method == "manual" or method == "ocr_only":
         empty = lambda: {"value": None, "detected": False}  # noqa: E731
         detected = {
@@ -100,17 +102,24 @@ async def detect_surat_keluar_fields(
             "tanggal_surat": empty(),
             "isi_singkat":   empty(),
         }
-    elif method == "ai" and ai_extraction_service.available:
-        ai_result = ai_extraction_service.extract_from_file(file_path, ocr_text)
-        detected = {
-            "penerima":      ai_result.get("penerima",      {"value": None, "detected": False}),
-            "perihal":       ai_result.get("perihal",       {"value": None, "detected": False}),
-            "tanggal_surat": ai_result.get("tanggal_surat", {"value": None, "detected": False}),
-            "isi_singkat":   ai_result.get("isi_singkat",   {"value": None, "detected": False}),
-        }
+    elif method == "ai":
+        if not ai_extraction_service.available:
+            ai_error = {"code": 0, "message": "OPENROUTER_API_KEY tidak dikonfigurasi di server"}
+            detected = {f: {"value": None, "detected": False} for f in
+                        ["penerima", "perihal", "tanggal_surat", "isi_singkat"]}
+        else:
+            ai_result = ai_extraction_service.extract_from_file(file_path, ocr_text)
+            ai_error  = ai_result.pop("_error", None)
+            detected = {
+                "penerima":      ai_result.get("penerima",      {"value": None, "detected": False}),
+                "perihal":       ai_result.get("perihal",       {"value": None, "detected": False}),
+                "tanggal_surat": ai_result.get("tanggal_surat", {"value": None, "detected": False}),
+                "isi_singkat":   ai_result.get("isi_singkat",   {"value": None, "detected": False}),
+            }
     elif method == "hybrid":
         if ai_extraction_service.available:
             ai_result    = ai_extraction_service.extract_from_file(file_path, ocr_text)
+            ai_error     = ai_result.pop("_error", None)
             regex_result = extraction_service.extract_all(ocr_text)
             def _merge(key: str, regex_key: str | None = None):
                 rkey = regex_key or key
@@ -150,7 +159,7 @@ async def detect_surat_keluar_fields(
             "isi_singkat":   extracted.get("isi_singkat", {"value": None, "detected": False}),
         }
 
-    return {
+    response = {
         "file_token": file_path,
         "file_size": file_size,
         "original_filename": file.filename,
@@ -160,6 +169,9 @@ async def detect_surat_keluar_fields(
         "keywords": ocr_result.get("keywords", []),
         "detected": detected,
     }
+    if ai_error:
+        response["ai_error"] = ai_error
+    return response
 
 
 # ─────────────────────────────────────────────────────────────

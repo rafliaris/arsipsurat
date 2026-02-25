@@ -132,6 +132,21 @@ export function SuratMasukForm() {
             const result = await suratMasukService.detect(file, method)
             setDetectResult(result)
 
+            // Show real AI error if present (e.g. 401 invalid key, 429 rate limit)
+            if (result.ai_error) {
+                const code = result.ai_error.code
+                const msg = result.ai_error.message
+                if (code === 0) {
+                    toast.warning("⚠️ AI tidak tersedia: API key belum dikonfigurasi.")
+                } else if (code === 401) {
+                    toast.error(`❌ AI gagal (401): ${msg} — Periksa OPENROUTER_API_KEY di server.`)
+                } else if (code === 429) {
+                    toast.warning(`⚠️ AI rate limit (429): ${msg} — Coba lagi nanti.`)
+                } else {
+                    toast.error(`❌ AI error (${code}): ${msg}`)
+                }
+            }
+
             const d = result.detected
             const isOcrOnly = method === "ocr_only"
 

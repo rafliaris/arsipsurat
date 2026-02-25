@@ -24,9 +24,11 @@ export interface DetectResult {
         perihal: DetectedField;
         tanggal_surat: DetectedField;
         pengirim: DetectedField;
-        penerima?: DetectedField;   // may be present from improved extractor
+        penerima?: DetectedField;
         isi_singkat?: DetectedField;
     };
+    /** Present when AI extraction returned an error (e.g. 401, 429) */
+    ai_error?: { code: number; message: string };
 }
 
 export interface ConfirmSuratMasukPayload {

@@ -92,6 +92,8 @@ async def detect_surat_fields(
     ocr_text = ocr_result.get("text", "")
 
     # ── Route by detection method ──────────────────────────────
+    ai_error = None  # populated if AI returns an error
+
     if method == "manual" or method == "ocr_only":
         # No field extraction — return empty detected fields
         empty = lambda: {"value": None, "detected": False}  # noqa: E731
@@ -103,13 +105,19 @@ async def detect_surat_fields(
             "penerima":      empty(),
             "isi_singkat":   empty(),
         }
-    elif method == "ai" and ai_extraction_service.available:
-        # Send actual file images (like the OpenRouter playground)
-        detected = ai_extraction_service.extract_from_file(file_path, ocr_text)
+    elif method == "ai":
+        if not ai_extraction_service.available:
+            ai_error = {"code": 0, "message": "OPENROUTER_API_KEY tidak dikonfigurasi di server"}
+            detected = {f: {"value": None, "detected": False} for f in
+                        ["nomor_surat", "perihal", "tanggal_surat", "pengirim", "penerima", "isi_singkat"]}
+        else:
+            detected = ai_extraction_service.extract_from_file(file_path, ocr_text)
+            ai_error = detected.pop("_error", None)  # pull error out of detected dict
     elif method == "hybrid":
         if ai_extraction_service.available:
             # AI from file + fill gaps with regex
             ai_result    = ai_extraction_service.extract_from_file(file_path, ocr_text)
+            ai_error     = ai_result.pop("_error", None)
             regex_result = extraction_service.extract_all(ocr_text)
             detected = {}
             for key in ["nomor_surat", "perihal", "tanggal_surat", "pengirim", "penerima", "isi_singkat"]:
@@ -121,7 +129,7 @@ async def detect_surat_fields(
         # Default: regex
         detected = extraction_service.extract_all(ocr_text)
 
-    return {
+    response = {
         "file_token": file_path,
         "file_size": file_size,
         "original_filename": file.filename,
@@ -131,6 +139,9 @@ async def detect_surat_fields(
         "keywords": ocr_result.get("keywords", []),
         "detected": detected,
     }
+    if ai_error:
+        response["ai_error"] = ai_error
+    return response
 
 
 # ─────────────────────────────────────────────────────────────

@@ -51,9 +51,18 @@ Jika field tidak ditemukan dengan jelas, berikan tebakan terbaik berdasarkan kon
 """
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
-def _empty() -> Dict[str, Any]:
+def _empty(error: Optional[Dict] = None) -> Dict[str, Any]:
     fields = ["nomor_surat", "tanggal_surat", "pengirim", "penerima", "perihal", "isi_singkat"]
-    return {f: {"value": None, "detected": False} for f in fields}
+    result = {f: {"value": None, "detected": False} for f in fields}
+    if error:
+        result["_error"] = error
+    return result
+
+
+def _error(code: int, message: str) -> Dict[str, Any]:
+    """Return _empty() with a structured error payload."""
+    logger.error("AI API error %s: %s", code, message)
+    return _empty({"code": code, "message": message})
 
 
 def _wrap(raw: Dict[str, Any]) -> Dict[str, Any]:
@@ -128,8 +137,12 @@ class AIExtractionService:
         )
 
         if not resp.ok:
-            logger.error("AI HTTP %s: %s", resp.status_code, resp.text[:500])
-            return _empty()
+            try:
+                err_body = resp.json()
+                msg = err_body.get("error", {}).get("message", resp.text[:200])
+            except Exception:
+                msg = resp.text[:200]
+            return _error(resp.status_code, msg)
 
         data = resp.json()
         message = data["choices"][0]["message"]

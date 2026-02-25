@@ -25,6 +25,8 @@ export interface DetectKeluarResult {
         tanggal_surat: DetectedFieldKeluar;
         isi_singkat?: DetectedFieldKeluar;
     };
+    /** Present when AI extraction returned an error (e.g. 401, 429) */
+    ai_error?: { code: number; message: string };
 }
 
 export interface ConfirmSuratKeluarPayload {
