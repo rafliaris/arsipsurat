@@ -38,4 +38,11 @@ export const authService = {
     async logout(): Promise<void> {
         await api.post('/auth/logout');
     },
+
+    async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+        await api.put('/auth/change-password', {
+            current_password: currentPassword,
+            new_password: newPassword,
+        });
+    },
 };

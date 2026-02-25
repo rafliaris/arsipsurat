@@ -7,6 +7,7 @@ import { ArrowRight, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { useAuthStore } from "@/store/authStore"
+import { ForgotPasswordDialog } from "./ForgotPasswordDialog"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -30,6 +31,7 @@ export function LoginForm() {
     const navigate = useNavigate()
     const login = useAuthStore((state) => state.login)
     const [isLoading, setIsLoading] = useState(false)
+    const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
 
     const form = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),
@@ -56,62 +58,73 @@ export function LoginForm() {
     }
 
     return (
-        <Card className="border-none shadow-none">
-            <CardHeader className="text-center">
-                <CardTitle className="text-2xl font-bold">Login</CardTitle>
-                <CardDescription>
-                    Masukkan username/email dan password untuk masuk
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name="username"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Username atau Email</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="admin atau admin@example.com" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="password"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <div className="flex items-center justify-between">
-                                        <FormLabel>Password</FormLabel>
-                                        <a href="#" className="text-sm text-muted-foreground hover:underline">
-                                            Lupa password?
-                                        </a>
-                                    </div>
-                                    <FormControl>
-                                        <Input type="password" placeholder="******" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Logging in...
-                                </>
-                            ) : (
-                                <>
-                                    Login <ArrowRight className="ml-2 h-4 w-4" />
-                                </>
-                            )}
-                        </Button>
-                    </form>
-                </Form>
-            </CardContent>
-        </Card>
+        <>
+            <Card className="border-none shadow-none">
+                <CardHeader className="text-center">
+                    <CardTitle className="text-2xl font-bold">Login</CardTitle>
+                    <CardDescription>
+                        Masukkan username/email dan password untuk masuk
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                            <FormField
+                                control={form.control}
+                                name="username"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Username atau Email</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="admin atau admin@example.com" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="password"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <div className="flex items-center justify-between">
+                                            <FormLabel>Password</FormLabel>
+                                            <button
+                                                type="button"
+                                                className="text-sm text-muted-foreground hover:underline"
+                                                onClick={() => setForgotPasswordOpen(true)}
+                                            >
+                                                Lupa password?
+                                            </button>
+                                        </div>
+                                        <FormControl>
+                                            <Input type="password" placeholder="******" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <Button type="submit" className="w-full" disabled={isLoading}>
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Logging in...
+                                    </>
+                                ) : (
+                                    <>
+                                        Login <ArrowRight className="ml-2 h-4 w-4" />
+                                    </>
+                                )}
+                            </Button>
+                        </form>
+                    </Form>
+                </CardContent>
+            </Card>
+
+            <ForgotPasswordDialog
+                open={forgotPasswordOpen}
+                onOpenChange={setForgotPasswordOpen}
+            />
+        </>
     )
 }
