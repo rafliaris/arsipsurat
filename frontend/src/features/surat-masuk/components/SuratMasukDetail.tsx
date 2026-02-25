@@ -87,9 +87,9 @@ export function SuratMasukDetail({ data, onDeleted }: { data: SuratMasuk; onDele
 
     const printRef = useRef<HTMLDivElement>(null)
     const handlePrint = useReactToPrint({
-        content: () => printRef.current,
+        contentRef: printRef,
         documentTitle: `Disposisi - ${data.nomor_surat}`,
-    } as any)
+    })
 
     return (
         <div className="space-y-6">
@@ -112,7 +112,7 @@ export function SuratMasukDetail({ data, onDeleted }: { data: SuratMasuk; onDele
                     <Button variant="outline" size="sm" onClick={() => navigate(`/surat-masuk/${data.id}/edit`)}>
                         <Edit className="mr-2 h-4 w-4" /> Edit
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handlePrint && handlePrint()}>
+                    <Button variant="outline" size="sm" onClick={() => handlePrint()}>
                         <Printer className="mr-2 h-4 w-4" /> Cetak Disposisi
                     </Button>
                     <Button variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting}>
