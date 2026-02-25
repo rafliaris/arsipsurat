@@ -132,8 +132,22 @@ class AIExtractionService:
             return _empty()
 
         data = resp.json()
-        content = data["choices"][0]["message"]["content"]
-        logger.info("AI raw response: %s", content[:500])
+        message = data["choices"][0]["message"]
+        content = message.get("content") or ""
+
+        # GLM-4.5-Air (and some other free models) put the actual JSON inside
+        # the `reasoning` field when max_tokens is consumed by thinking tokens,
+        # leaving `content` as an empty string.  Fall back to `reasoning`.
+        if not content.strip():
+            reasoning = message.get("reasoning") or ""
+            if reasoning.strip():
+                logger.info("AI: content empty, falling back to reasoning field")
+                content = reasoning
+            else:
+                logger.error("AI: both content and reasoning are empty. Full response: %s", json.dumps(data)[:1000])
+                return _empty()
+
+        logger.info("AI raw response content (%d chars): %s", len(content), content[:500])
 
         raw = _parse_json_from_response(content)
         return _wrap(raw)
